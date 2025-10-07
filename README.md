@@ -1,235 +1,197 @@
-# 🚀 Agent Ecosystem v2.0
+# Claude Configuration Management
 
-## Overview
+This repository manages Claude Code agents, hooks, commands, and global instructions across multiple development machines.
 
-This is the enhanced and orchestrated agent ecosystem for Django/DRF backend with JWT authentication and Vue.js frontend with Pinia state management and Tailwind CSS. Now includes specialized legal document generators for production-ready privacy policies and terms of service.
+## 🚀 Quick Setup (New Machine)
 
-## 🎯 Key Improvements
+```bash
+# 1. Clone the repository
+cd ~
+git clone git@github.com:hmesfin/claude-config.git
 
-### Consolidation
-
-- **RBAC agents merged** into unified `rbac-architect`
-- **Security review enhanced** in `security-reviewer`
-- **Clear boundaries** established between all agents
-
-### New Capabilities
-
-- **`project-orchestrator`**: Master coordinator for complex workflows
-- **`data-architect`**: Data modeling, caching, and pipeline management
-- **`observability-engineer`**: Monitoring, debugging, and observability
-- **`realtime-architect`**: WebSocket and real-time features
-- **`async-task-architect`**: Background jobs and queue management
-- **`privacy-policy-generator`**: GDPR/CCPA compliant privacy policies
-- **`terms-of-service-generator`**: Legally enforceable terms of service
-
-## 📂 Agent Directory
-
-### 🎭 Orchestration
-
-| Agent | Purpose | Model |
-|-------|---------|-------|
-| `project-orchestrator` | Coordinates multi-agent workflows | opus |
-
-### 💻 Development
-
-| Agent | Purpose | Model |
-|-------|---------|-------|
-| `django-vue-api-architect` | REST API development | sonnet |
-| `vue3-composition-architect` | Vue.js frontend development | sonnet |
-| `tailwind-ui-ux` | CSS and design systems | sonnet |
-| `django-vue-refactor` | Code refactoring (RefactorA/RefactorX) | - |
-
-### 🗄️ Data & Infrastructure
-
-| Agent | Purpose | Model |
-|-------|---------|-------|
-| `data-architect` | Data modeling and caching | opus |
-| `django-db-optimizer` | Database query optimization | sonnet |
-| `django-migration-architect` | Database migrations | sonnet |
-| `async-task-architect` | Background tasks and queues | opus |
-| `realtime-architect` | WebSocket and real-time | opus |
-
-### 🔒 Security & Quality
-
-| Agent | Purpose | Model |
-|-------|---------|-------|
-| `rbac-architect` | RBAC design and implementation | opus |
-| `security-reviewer` | Comprehensive security audits | opus |
-| `django-vue-rbac-tester` | Test automation | sonnet |
-| `django-vue-performance-optimizer` | Performance optimization | opus |
-| `lint-format-sorter` | Code formatting and linting | sonnet |
-| `observability-engineer` | Monitoring and debugging | opus |
-
-### 🚀 Operations
-
-| Agent | Purpose | Model |
-|-------|---------|-------|
-| `django-vue-devops` | Deployment and infrastructure | sonnet |
-
-### 📜 Legal & Compliance
-
-| Agent | Purpose | Model |
-|-------|---------|-------|
-| `privacy-policy-generator` | Generate GDPR/CCPA compliant privacy policies | opus |
-| `terms-of-service-generator` | Generate enforceable terms of service | opus |
-
-## 🔄 Workflow Examples
-
-### Legal Document Generation
-
-```mermaid
-graph LR
-    O[User Input] --> PP[privacy-policy-generator]
-    O --> TOS[terms-of-service-generator]
-    PP --> REVIEW[security-reviewer]
-    TOS --> REVIEW
-    REVIEW --> OUTPUT[Production-Ready Documents]
+# 2. Run the symlink setup script
+cd claude-config
+./setup-claude-symlinks.sh
 ```
 
-### New Feature Development
+That's it! Your `~/.claude/` directory now points to this repository.
 
-```mermaid
-graph LR
-    O[Orchestrator] --> V[vue3-composition-architect]
-    O --> A[django-vue-api-architect]
-    A --> D[django-db-optimizer]
-    V --> T[tailwind-ui-ux]
-    D --> R[rbac-architect]
-    R --> TEST[django-vue-rbac-tester]
-    TEST --> S[security-reviewer]
-    S --> L[lint-format-sorter]
-    L --> P[django-vue-performance-optimizer]
-    P --> DEV[django-vue-devops]
+## 📁 Repository Structure
+
+```
+claude-config/
+├── agents/                    # Claude Code specialized agents
+│   ├── Backend Architects
+│   │   ├── django-tdd-architect.md
+│   │   └── fastapi-tdd-architect.md
+│   ├── Data Architects
+│   │   ├── django-data-architect.md
+│   │   └── fastapi-data-architect.md
+│   ├── Security Architects
+│   │   ├── django-security-architect.md
+│   │   └── fastapi-security-architect.md
+│   ├── Deployment Agents
+│   │   ├── django-vue-staging-agent.md
+│   │   └── fastapi-vue-staging-agent.md
+│   └── Other Specialized Agents
+│       ├── vue-tdd-architect.md
+│       ├── async-tdd-architect.md
+│       ├── performance-tdd-optimizer.md
+│       └── ...
+├── hooks/                     # Git-style hooks for Claude Code
+├── commands/                  # Custom slash commands
+├── CLAUDE.md                  # Global instructions for all projects
+├── STAGING_DEPLOYMENT.md      # Traefik staging deployment guide
+├── setup-claude-symlinks.sh   # Symlink setup script
+└── README.md                  # This file
 ```
 
-### Real-time Feature Implementation
+## 🔄 Workflow
 
-```mermaid
-graph TD
-    O[Orchestrator] --> RT[realtime-architect]
-    RT --> API[django-vue-api-architect]
-    RT --> VUE[vue3-composition-architect]
-    API --> ASYNC[async-task-architect]
-    ASYNC --> DATA[data-architect]
-    DATA --> OBS[observability-engineer]
+### On Your Main Development Machine
+
+1. **Make changes** to agents, hooks, or commands in this repo
+2. **Test** your changes
+3. **Commit and push** to GitHub:
+   ```bash
+   git add .
+   git commit -m "Update agent configurations"
+   git push
+   ```
+
+### On Other Machines (WSL, servers, etc.)
+
+Simply pull the latest changes:
+
+```bash
+cd ~/claude-config
+git pull
 ```
 
-### Performance Optimization
+Changes are **instantly available** in `~/.claude/` thanks to symlinks!
 
-```mermaid
-graph LR
-    O[Orchestrator] --> PERF[django-vue-performance-optimizer]
-    PERF --> DB[django-db-optimizer]
-    PERF --> DATA[data-architect]
-    PERF --> OBS[observability-engineer]
-    DB --> REF[django-vue-refactor]
+## 🎯 Specialized Agents
+
+### Backend Development
+- **django-tdd-architect** - Django REST Framework with TDD
+- **fastapi-tdd-architect** - FastAPI async backend with TDD
+
+### Data Architecture
+- **django-data-architect** - Django ORM, PostgreSQL, caching
+- **fastapi-data-architect** - SQLAlchemy 2.0 async, Alembic migrations
+
+### Security
+- **django-security-architect** - DRF permissions, Django auth
+- **fastapi-security-architect** - OAuth2/JWT, dependency injection
+
+### Deployment
+- **django-vue-staging-agent** - Django+Vue.js Traefik deployment
+- **fastapi-vue-staging-agent** - FastAPI+Vue.js Traefik deployment
+
+### Frontend & Full-Stack
+- **vue-tdd-architect** - Vue 3 Composition API with Vitest
+- **async-tdd-architect** - Celery tasks and background jobs
+- **performance-tdd-optimizer** - Performance optimization
+- **devops-tdd-engineer** - Docker, CI/CD, infrastructure
+
+## 📝 Adding New Content
+
+### Adding a New Agent
+
+1. Create the agent file in `agents/`:
+   ```bash
+   cd ~/claude-config/agents
+   nano my-new-agent.md
+   ```
+
+2. Commit and push:
+   ```bash
+   git add agents/my-new-agent.md
+   git commit -m "Add my-new-agent for XYZ tasks"
+   git push
+   ```
+
+3. The agent is immediately available in `~/.claude/agents/` on all machines after `git pull`
+
+### Adding a New Hook
+
+1. Create hook in `hooks/`:
+   ```bash
+   cd ~/claude-config/hooks
+   nano my-hook.sh
+   chmod +x my-hook.sh
+   ```
+
+2. Commit and push (same as above)
+
+### Adding a New Slash Command
+
+1. Create command in `commands/`:
+   ```bash
+   cd ~/claude-config/commands
+   nano my-command.md
+   ```
+
+2. Commit and push (same as above)
+
+## 🔧 Troubleshooting
+
+### Symlinks Not Working?
+
+Check if symlinks exist:
+```bash
+ls -la ~/.claude/
 ```
 
-## 🚦 Using the Orchestrator
-
-### Simple Request
-
-```markdown
-User: "Create a user dashboard with real-time notifications"
-Orchestrator: Decomposes into tasks for realtime-architect, vue3-composition-architect, django-vue-api-architect, and others
+You should see entries like:
+```
+agents -> /home/hmesfin/claude-config/agents
+hooks -> /home/hmesfin/claude-config/hooks
+...
 ```
 
-### Complex Workflow
+### Re-run Setup
 
-```python
-# The orchestrator handles:
-1. Task decomposition
-2. Dependency management
-3. Parallel execution
-4. Result aggregation
-5. Conflict resolution
-6. Progress tracking
+If something goes wrong, you can re-run the setup:
+```bash
+cd ~/claude-config
+./setup-claude-symlinks.sh
 ```
 
-## 📊 Agent Communication Protocol
+Your old `~/.claude/` will be backed up automatically.
 
-All agents support standardized messaging:
+### Restore Backup
 
-```yaml
-agent_message:
-  from: source_agent
-  to: target_agent
-  type: [request|response|notification]
-  context:
-    task_id: unique_id
-    priority: [critical|high|medium|low]
-  payload:
-    action: required_action
-    data: relevant_data
+If you need to restore a backup:
+```bash
+ls ~/.claude.backup.*  # List available backups
+rm -rf ~/.claude
+mv ~/.claude.backup.YYYYMMDD_HHMMSS ~/.claude
 ```
 
-## 🛡️ Quality Gates
+## 🎨 Philosophy
 
-Each agent implements quality checks:
+- **Single Source of Truth**: This Git repository is the canonical source
+- **No Manual Copying**: Symlinks ensure instant sync across machines
+- **Version Control**: All changes tracked in Git
+- **Easy Rollback**: `git checkout` to revert any change
+- **TDD Everything**: All agents enforce test-first development
+- **Framework-Specific**: Specialized agents for Django and FastAPI patterns
 
-- **Pre-execution validation**
-- **Progress monitoring**
-- **Post-execution verification**
-- **Error handling and recovery**
-- **Performance metrics**
+## 📚 Documentation
 
-## 🚨 Emergency Response
+- [Staging Deployment Guide](STAGING_DEPLOYMENT.md) - Traefik multi-tenant setup
+- [Global Instructions](CLAUDE.md) - Default behavior for all projects
 
-Pre-configured emergency teams:
+## 🤝 Contributing
 
-### Production Down
+This is a personal configuration repo, but if you're collaborating:
 
-- `django-vue-devops`
-- `observability-engineer`
-- `django-db-optimizer`
+1. Create a feature branch
+2. Make your changes
+3. Test thoroughly
+4. Submit a PR
 
-### Security Breach
+## 📄 License
 
-- `security-reviewer`
-- `rbac-architect`
-- `django-vue-devops`
-
-### Data Issues
-
-- `django-migration-architect`
-- `data-architect`
-- `django-db-optimizer`
-
-## 📈 Metrics & Monitoring
-
-The orchestrator tracks:
-
-- Agent utilization rates
-- Task completion times
-- Error rates and recovery
-- Collaboration patterns
-- Performance improvements
-
-## 🔧 Configuration
-
-Each agent can be configured for:
-
-- Execution strategies (sequential/parallel)
-- Error handling policies
-- Resource limits
-- Quality thresholds
-- Collaboration preferences
-
-## 🎯 Best Practices
-
-1. **Always use the orchestrator** for complex tasks
-2. **Let agents specialize** - don't bypass their expertise
-3. **Monitor progress** through orchestrator updates
-4. **Trust quality gates** - they prevent issues
-5. **Learn from metrics** - optimize common workflows
-
-## 🚀 Getting Started
-
-1. For simple tasks: Call specific agents directly
-2. For complex features: Use `project-orchestrator`
-3. For emergencies: Invoke emergency response teams
-4. For optimization: Start with `django-vue-performance-optimizer`
-
----
-
-*"Orchestrated agents deliver harmonious code"* 🎼
+Personal configuration - use at your own discretion.
