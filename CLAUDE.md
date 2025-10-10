@@ -25,6 +25,13 @@
 - Shared components go in `shared/` directory
 - Global utilities in top-level `utils/`, `composables/`, `stores/`
 
+### React Native Mobile
+- Use feature-based modules in `src/features/<feature>/`
+- Each feature has: components, hooks, screens, services, store, types
+- Split native modules by platform: `ios/`, `android/`, `js/`
+- Shared components in `src/components/`
+- Platform-specific code: `Component.ios.tsx`, `Component.android.tsx`
+
 ### File Splitting Triggers
 - File approaching 500 lines → Split immediately
 - Component has >3 responsibilities → Extract sub-components
@@ -102,9 +109,9 @@ docker compose restart frontend
 
 ## Tools I Use
 
-- Formatter: Black (Python), Prettier (JS/Vue)
-- Linter: Ruff (Python), ESLint (JS/Vue)
-- Testing: Pytest (Python), Vitest (Vue)
+- Formatter: Black (Python), Prettier (JS/Vue/React Native)
+- Linter: Ruff (Python), ESLint (JS/Vue/React Native)
+- Testing: Pytest (Python), Vitest (Vue), Jest (React Native)
 
 ## Architecture Patterns
 
@@ -114,6 +121,15 @@ docker compose restart frontend
 - **Database**: PostgreSQL (in Docker)
 - **Async Tasks**: Celery (in Docker)
 - **Real-time**: Django Channels + WebSockets
+
+### React Native Mobile Stack
+- **Framework**: React Native with Expo or bare workflow
+- **State**: Redux Toolkit, Zustand, or React Context
+- **Navigation**: React Navigation
+- **Testing**: Jest + React Native Testing Library
+- **Data**: AsyncStorage, MMKV, WatermelonDB, React Query
+- **Real-time**: Socket.io or native WebSockets
+- **Offline-First**: Always assume network unavailability
 
 ### Test-Driven Development (TDD)
 - **RED-GREEN-REFACTOR** cycle is non-negotiable
@@ -126,6 +142,13 @@ docker compose restart frontend
 - Each module exports routes grouped by layout (dashboard, public, auth)
 - Self-contained: components, composables, services, stores, types, views
 - Example: `modules/blog/routes.ts` exports `blogRoutes.dashboard` and `blogRoutes.public`
+
+### Module Pattern (React Native)
+- Feature modules in `src/features/<feature>/`
+- Each feature is self-contained: components, hooks, screens, services, store, types
+- Platform-specific code uses `.ios.tsx`/`.android.tsx` extensions
+- Navigation organized by flow: authenticated, public, onboarding
+- Example: `features/chat/` contains all chat-related code in one place
 
 ## Related Documentation
 
