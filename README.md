@@ -20,24 +20,39 @@ That's it! Your `~/.claude/` directory now points to this repository.
 
 ```
 claude-config/
-├── agents/                    # Claude Code specialized agents
+├── agents/                    # Claude Code specialized agents (20+ agents)
 │   ├── Backend Architects
 │   │   ├── django-tdd-architect.md
-│   │   └── fastapi-tdd-architect.md
-│   ├── Data Architects
+│   │   ├── fastapi-tdd-architect.md
 │   │   ├── django-data-architect.md
 │   │   └── fastapi-data-architect.md
+│   ├── Frontend Architects
+│   │   ├── vue-tdd-architect.md
+│   │   └── react-native-tdd-architect.md
+│   ├── Mobile Development (React Native)
+│   │   ├── mobile-data-architect.md
+│   │   ├── mobile-security-architect.md
+│   │   ├── mobile-performance-optimizer.md
+│   │   ├── mobile-realtime-architect.md
+│   │   ├── native-module-tdd-engineer.md
+│   │   └── expo-deployment-agent.md
 │   ├── Security Architects
 │   │   ├── django-security-architect.md
-│   │   └── fastapi-security-architect.md
+│   │   ├── fastapi-security-architect.md
+│   │   └── security-tdd-architect.md
 │   ├── Deployment Agents
 │   │   ├── django-vue-staging-agent.md
-│   │   └── fastapi-vue-staging-agent.md
-│   └── Other Specialized Agents
-│       ├── vue-tdd-architect.md
+│   │   ├── fastapi-vue-staging-agent.md
+│   │   └── expo-deployment-agent.md
+│   └── Infrastructure & Performance
 │       ├── async-tdd-architect.md
+│       ├── realtime-tdd-architect.md
 │       ├── performance-tdd-optimizer.md
-│       └── ...
+│       ├── devops-tdd-engineer.md
+│       ├── observability-tdd-engineer.md
+│       ├── data-tdd-architect.md
+│       ├── tdd-test-specialist.md
+│       └── project-orchestrator.md
 ├── hooks/                     # Git-style hooks for Claude Code
 ├── commands/                  # Custom slash commands
 ├── CLAUDE.md                  # Global instructions for all projects
@@ -75,24 +90,37 @@ Changes are **instantly available** in `~/.claude/` thanks to symlinks!
 ### Backend Development
 - **django-tdd-architect** - Django REST Framework with TDD
 - **fastapi-tdd-architect** - FastAPI async backend with TDD
-
-### Data Architecture
 - **django-data-architect** - Django ORM, PostgreSQL, caching
 - **fastapi-data-architect** - SQLAlchemy 2.0 async, Alembic migrations
 
 ### Security
-- **django-security-architect** - DRF permissions, Django auth
-- **fastapi-security-architect** - OAuth2/JWT, dependency injection
+- **django-security-architect** - DRF permissions, Django RBAC
+- **fastapi-security-architect** - OAuth2/JWT, dependency-based auth
+- **mobile-security-architect** - Biometric auth, secure storage, mobile RBAC
+
+### Frontend Development
+- **vue-tdd-architect** - Vue 3 Composition API with Vitest
+- **react-native-tdd-architect** - React Native with Jest & Testing Library
+
+### Mobile Development (React Native)
+- **mobile-data-architect** - Offline-first data, sync strategies, WatermelonDB
+- **mobile-security-architect** - Biometric, Keychain/Keystore, JWT
+- **mobile-performance-optimizer** - Startup time, FPS, memory, bundle size
+- **mobile-realtime-architect** - WebSocket, chat, live tracking
+- **native-module-tdd-engineer** - Native bridges (iOS Swift, Android Kotlin)
+- **expo-deployment-agent** - EAS Build/Update, App Store/Play Store
+
+### Infrastructure & Performance
+- **async-tdd-architect** - Celery tasks and background jobs
+- **realtime-tdd-architect** - WebSockets, Django Channels
+- **performance-tdd-optimizer** - Performance optimization (web)
+- **devops-tdd-engineer** - Docker, CI/CD, infrastructure
+- **observability-tdd-engineer** - Monitoring, logging, alerting
 
 ### Deployment
 - **django-vue-staging-agent** - Django+Vue.js Traefik deployment
 - **fastapi-vue-staging-agent** - FastAPI+Vue.js Traefik deployment
-
-### Frontend & Full-Stack
-- **vue-tdd-architect** - Vue 3 Composition API with Vitest
-- **async-tdd-architect** - Celery tasks and background jobs
-- **performance-tdd-optimizer** - Performance optimization
-- **devops-tdd-engineer** - Docker, CI/CD, infrastructure
+- **expo-deployment-agent** - React Native EAS Build & submission
 
 ## 📝 Adding New Content
 
@@ -176,7 +204,9 @@ mv ~/.claude.backup.YYYYMMDD_HHMMSS ~/.claude
 - **Version Control**: All changes tracked in Git
 - **Easy Rollback**: `git checkout` to revert any change
 - **TDD Everything**: All agents enforce test-first development
-- **Framework-Specific**: Specialized agents for Django and FastAPI patterns
+- **Framework-Specific**: Specialized agents for Django, FastAPI, Vue.js, and React Native
+- **Full-Stack Coverage**: Backend (Django/FastAPI) + Web (Vue.js) + Mobile (React Native)
+- **<500 Line Limit**: All agents enforce file size constraints for maintainability
 
 ## 📚 Documentation
 
