@@ -21,7 +21,7 @@
 ### Vue.js Frontend
 - Use modular architecture with `modules/` directory
 - Each module has its own: components, composables, services, stores, types, views
-- Split routes by layout: `dashboard`, `public`, `auth`
+- Split routes by layout: `dashboard`, `public`
 - Shared components go in `shared/` directory
 - Global utilities in top-level `utils/`, `composables/`, `stores/`
 
@@ -155,3 +155,26 @@ docker compose restart frontend
 - Docker workflow guide: `~/.claude/DOCKER_WORKFLOW.md`
 - Hook system: `~/.claude/hooks/README.md`
 - Specialized agents: `~/.claude/agents/`
+
+
+# Agent Management Commands
+
+## /backend
+Disable all mobile agents and enable backend agents:
+- Disable: mobile-data-architect, mobile-performance-optimizer, mobile-realtime-architect, mobile-security-architect, react-native-tdd-architect, native-module-tdd-engineer, expo-deployment-agent
+- Keep enabled: fastapi-tdd-architect, django-tdd-architect, data-tdd-architect, security-tdd-architect, async-tdd-architect, devops-tdd-engineer, project-orchestrator, tdd-test-specialist
+
+## /mobile
+Disable all backend framework agents and enable mobile agents:
+- Disable: fastapi-tdd-architect, fastapi-data-architect, fastapi-security-architect, fastapi-vue-staging-agent, django-tdd-architect, django-data-architect, django-security-architect, django-vue-staging-agent, vue-tdd-architect
+- Keep enabled: mobile-data-architect, mobile-performance-optimizer, mobile-realtime-architect, mobile-security-architect, react-native-tdd-architect, native-module-tdd-engineer, expo-deployment-agent, project-orchestrator, tdd-test-specialist
+
+## /fastapi
+Configure for FastAPI projects:
+- Disable: django-tdd-architect, django-data-architect, django-security-architect, django-vue-staging-agent, all mobile agents
+- Enable: fastapi-tdd-architect, fastapi-data-architect, fastapi-security-architect, async-tdd-architect
+
+## /django
+Configure for Django projects:
+- Disable: fastapi-tdd-architect, fastapi-data-architect, fastapi-security-architect, fastapi-vue-staging-agent, all mobile agents
+- Enable: django-tdd-architect, django-data-architect, django-security-architect, async-tdd-architect
