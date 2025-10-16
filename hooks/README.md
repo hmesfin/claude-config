@@ -191,7 +191,211 @@ echo '{"tool_input": {"command": "npm run build"}}' | python3 ~/.claude/hooks/do
 - On error, hook allows command (fail-safe)
 - Hook is local to your machine only
 
+---
+
+## TypeScript Quality Guard Hook
+
+**Purpose**: Prevent common TypeScript errors BEFORE code is written by warning agents about error-prone patterns.
+
+### What It Does
+
+⚠️ **Provides warnings when writing**:
+- Vue components (`.vue` files)
+- Test files (`.spec.ts`, `.test.ts`)
+- Type definitions (`.types.ts` files)
+- Composables (`composables/*.ts`)
+
+### Pattern Warnings
+
+**1. Test Mock Files**
+```
+⚠️  TYPESCRIPT QUALITY REMINDER: Writing Test File
+
+Common test patterns that cause TypeScript errors:
+
+1. Template Refs - Cast to proper HTML type:
+   ✅ (wrapper.find('[data-test="input"]').element as HTMLInputElement).value
+
+2. Component Instance Access - Use 'any' in tests:
+   ✅ await (wrapper.vm as any).methodName()
+
+3. Mock Composables - Match real return types:
+   ✅ Use computed(() => value) for computed refs, not ref(value)
+
+4. Complete Mocks - Include ALL required properties:
+   💡 Hover over type in VSCode to see all required fields
+
+Reference: frontend/TYPESCRIPT_PATTERNS.md
+```
+
+**2. Vue Components**
+```
+⚠️  TYPESCRIPT QUALITY REMINDER: Writing Vue Component
+
+Before writing component code:
+
+1. Run type-check to ensure codebase is clean:
+   docker compose run --rm frontend npm run type-check
+
+2. If creating types, ensure unions/enums are COMPLETE:
+   ✅ Add ALL possible values upfront to avoid future errors
+
+3. API calls should use generic types:
+   ✅ api.get<User>('/users/me/') not api.get('/users/me/')
+
+Reference: /lint-and-format --frontend --categorize --suggest-fixes
+```
+
+**3. Type Definitions**
+```
+⚠️  TYPESCRIPT QUALITY REMINDER: Writing Type Definitions
+
+Type safety checklist:
+
+1. Union types - Include ALL possible values now, not later
+2. Interfaces - Mark optional fields with '?'
+3. Enums - Add new values as features are created
+4. null vs undefined - Be consistent (prefer null)
+
+Common issue: Adding type values after code uses them
+✅ Update type FIRST, then use new values in code
+
+Reference: frontend/TYPESCRIPT_PATTERNS.md - Pattern 7
+```
+
+**4. Composables**
+```
+⚠️  TYPESCRIPT QUALITY REMINDER: Writing Composable
+
+Composable type safety:
+
+1. Computed properties - Return ComputedRef<T>, not Ref<T>
+2. Refs - Use Ref<T> for mutable state
+3. Return types - Explicitly type the return object
+4. Generic types - Use <T> for reusable composables
+
+Common issue: Mixing ref() and computed() incorrectly
+✅ If logic computes a value, use computed(), not ref()
+
+Reference: frontend/TYPESCRIPT_PATTERNS.md - Pattern 6
+```
+
+### Installation
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/hmesfin/claude-config/hooks/docker-command-guard.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/hmesfin/claude-config/hooks/typescript-quality-guard.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### How It Works
+
+1. **Before every Write/Edit** on frontend/src files
+2. **Checks file pattern** (test file, Vue component, etc.)
+3. **Shows relevant warnings** about common TypeScript pitfalls
+4. **Checks current error count** and warns if errors exist
+5. **Allows operation** (non-blocking - just educational)
+
+### Example Output
+
+**When writing test file with existing TypeScript errors:**
+```
+⚠️  TYPESCRIPT QUALITY REMINDER: Writing Test File
+
+[Pattern warnings shown above]
+
+⚠️  CURRENT TYPESCRIPT ERRORS: 111
+   Consider fixing existing errors before adding new code.
+   Run: /lint-and-format --frontend --categorize
+```
+
+### Why This Hook Matters
+
+**Based on battle-tested learnings from 584 → 111 TypeScript error reduction:**
+
+- **Prevention > Reaction**: Catching patterns before they're written
+- **Educational**: Teaches agents about TypeScript best practices
+- **Non-blocking**: Warnings don't prevent work, just raise awareness
+- **Pattern library**: References actual fixes from real error cleanup
+
+### Battle-Tested Effectiveness
+
+This hook codifies learnings from fixing **473 TypeScript errors** (81% reduction):
+
+- Template ref type casting (45 errors)
+- Test mock completeness (24 errors)
+- Ref vs ComputedRef (86 errors)
+- API client generic types (76 errors)
+- Union type completeness (multiple patterns)
+
+**Result**: Agents write TypeScript-clean code from the start, not after CI fails.
+
+### Testing the Hook
+
+```bash
+# Test the hook directly
+echo '{"tool_name": "Write", "tool_input": {"file_path": "frontend/src/components/Test.spec.ts"}}' | \
+  python3 ~/claude-config/hooks/typescript-quality-guard.py
+
+# Should show test file warnings
+```
+
+### Customization
+
+Edit `/home/hmesfin/claude-config/hooks/typescript-quality-guard.py` to:
+
+- Add more pattern warnings for specific file types
+- Customize warning messages based on your patterns
+- Adjust error count threshold for warnings
+
+**Example: Add store pattern**
+```python
+"pinia store": {
+    "trigger": r"stores/.*\.ts",
+    "warning": """
+⚠️  TYPESCRIPT QUALITY REMINDER: Writing Pinia Store
+
+Store type safety:
+1. Use defineStore() with setup syntax for type inference
+2. Return object should be explicitly typed
+3. Actions should have typed parameters
+""",
+},
+```
+
+### Safety
+
+- Hook only shows warnings, never blocks operations
+- Hook fails silently on errors (fail-safe)
+- Hook only checks frontend/src files
+- No file modifications or system changes
+
 ### Related Documentation
 
+- `frontend/TYPESCRIPT_PATTERNS.md` - Pattern reference library
+- `/lint-and-format --frontend` - Error categorization tool
 - [Claude Code Hooks Guide](https://docs.claude.com/en/docs/claude-code/hooks-guide.md)
 - [Claude Code Settings](https://docs.claude.com/en/docs/claude-code/settings)

@@ -1488,6 +1488,176 @@ Every Vue task you complete must have:
 - ✅ Accessibility tested
 - ✅ Edge cases covered
 - ✅ Tailwind classes tested
+- ✅ **TypeScript: 0 errors** (run type-check before committing)
+
+## 🎯 TypeScript Quality Rules (MANDATORY)
+
+**Battle-tested from 584 → 111 error reduction journey.** These rules prevent TypeScript errors BEFORE they're written.
+
+### Rule 1: Type-Check FIRST, Before Any Commit
+
+```bash
+# ALWAYS run type-check before writing component code
+docker compose run --rm frontend npm run type-check
+
+# Expected output: "Found 0 errors"
+# If errors exist, FIX THEM FIRST before writing new code
+```
+
+### Rule 2: Test Mocks Must Match Real Types
+
+```typescript
+// ❌ WRONG: Incomplete mock missing required properties
+const mockAgent: AgentProfile = {
+  public_id: '123',
+  slug: 'test',
+  // Missing is_top_agent - will cause errors!
+}
+
+// ✅ CORRECT: Complete mock with ALL required properties
+const mockAgent: AgentProfile = {
+  public_id: '123',
+  slug: 'test',
+  is_top_agent: false,  // Add ALL required fields
+  // ... other required fields
+}
+
+// 💡 TIP: Hover over the type in VSCode to see ALL required fields
+```
+
+### Rule 3: Template Refs Need Type Casting
+
+```typescript
+// ❌ WRONG: Direct access to .value on template ref
+expect(wrapper.find('[data-test="input"]').element.value).toBe('test')
+
+// ✅ CORRECT: Cast to proper HTML element type
+expect((wrapper.find('[data-test="input"]').element as HTMLInputElement).value).toBe('test')
+expect((wrapper.find('[data-test="textarea"]').element as HTMLTextAreaElement).value).toBe('test')
+expect((wrapper.find('[data-test="select"]').element as HTMLSelectElement).value).toBe('test')
+```
+
+### Rule 4: Component Instance Access in Tests
+
+```typescript
+// ❌ WRONG: Direct access to internal component methods
+await wrapper.vm.goToStep(1)
+expect(wrapper.vm.formData.name).toBe('test')
+
+// ✅ CORRECT: Cast to any for internal methods (tests only!)
+await (wrapper.vm as any).goToStep(1)
+expect((wrapper.vm as any).formData.name).toBe('test')
+
+// Note: Using 'any' is acceptable in TESTS, not production code
+```
+
+### Rule 5: Ref vs ComputedRef in Composable Mocks
+
+```typescript
+// ❌ WRONG: Using ref() for computed values
+const createMockComposable = () => ({
+  isComplete: ref(false),        // Should be computed!
+  completeness: ref(0),          // Should be computed!
+})
+
+// ✅ CORRECT: Match the real composable's return types
+const createMockComposable = () => ({
+  isComplete: computed(() => false),  // Computed for computed
+  completeness: computed(() => 0),     // Computed for computed
+})
+
+// Rule: If real composable returns computed(), mock must too!
+```
+
+### Rule 6: API Client Generic Types
+
+```typescript
+// ✅ CORRECT: API client methods support generic types
+const user = await api.get<User>('/users/me/')
+const response = await api.post<LoginResponse>('/auth/login/', credentials)
+const data = await api.put<AgentProfile>('/agents/profile/', updates)
+
+// This prevents 'any' types and provides autocomplete
+```
+
+### Rule 7: Enum/Union Type Completeness
+
+```typescript
+// ❌ WRONG: Missing values in union type
+export type LeadSource = 'blog' | 'social' | 'email'
+// Later: LeadSource = 'mortgage_calculator'  ← ERROR!
+
+// ✅ CORRECT: Add ALL possible values upfront
+export type LeadSource =
+  | 'blog'
+  | 'social'
+  | 'email'
+  | 'mortgage_calculator'      // Add new sources
+  | 'net_proceeds_calculator'  // as they're created
+  | 'rent_vs_buy_calculator'
+
+// When adding new form sources, UPDATE the type FIRST
+```
+
+### Rule 8: null vs undefined Handling
+
+```typescript
+// ❌ WRONG: Mixing null and undefined
+formData.recurrence = pattern  // pattern is RecurrencePattern | null | undefined
+
+// ✅ CORRECT: Convert undefined to null explicitly
+formData.recurrence = pattern ?? null
+
+// OR be explicit
+formData.recurrence = pattern === undefined ? null : pattern
+```
+
+## 🔍 TypeScript Pre-Commit Checklist
+
+Before committing ANY Vue code:
+
+1. **Run type-check:**
+   ```bash
+   docker compose run --rm frontend npm run type-check
+   ```
+
+2. **If errors found:**
+   - Categorize by frequency: `npm run type-check 2>&1 | grep "error TS" | cut -d: -f3- | sort | uniq -c | sort -rn | head -10`
+   - Fix highest-count errors first
+   - Reference: `frontend/TYPESCRIPT_PATTERNS.md`
+
+3. **Run tests:**
+   ```bash
+   docker compose run --rm frontend npm run test:unit
+   ```
+
+4. **Run build:**
+   ```bash
+   docker compose run --rm frontend npm run build-only
+   ```
+
+5. **Only commit if ALL pass:**
+   - TypeScript: 0 errors ✅
+   - Tests: All passing ✅
+   - Build: Success ✅
+
+## 📚 TypeScript Resources
+
+**Reference Documentation:**
+- `frontend/TYPESCRIPT_PATTERNS.md` - Battle-tested patterns from real fixes
+- `/lint-and-format --frontend --categorize --suggest-fixes` - Smart error categorization
+
+**Quick Diagnostic Commands:**
+```bash
+# Count total errors
+npm run type-check 2>&1 | grep "error TS" | wc -l
+
+# Top 10 error patterns
+npm run type-check 2>&1 | grep "error TS" | cut -d: -f3- | sort | uniq -c | sort -rn | head -10
+
+# Search specific error type
+npm run type-check 2>&1 | grep "is not assignable"
+```
 
 ## 🔧 Docker Integration
 
