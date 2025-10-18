@@ -57,6 +57,14 @@ else
     echo -e "${YELLOW}⚠️${NC}  Skipped: commands/ (directory not found)"
 fi
 
+# Symlink skills directory
+if [ -d "$REPO_DIR/skills" ]; then
+    ln -sf "$REPO_DIR/skills" "$TARGET_DIR/skills"
+    echo -e "${GREEN}✅${NC} Linked: skills/"
+else
+    echo -e "${YELLOW}⚠️${NC}  Skipped: skills/ (directory not found)"
+fi
+
 # Symlink CLAUDE.md (global instructions)
 if [ -f "$REPO_DIR/CLAUDE.md" ]; then
     ln -sf "$REPO_DIR/CLAUDE.md" "$TARGET_DIR/CLAUDE.md"
@@ -82,5 +90,5 @@ echo ""
 
 # Verify symlinks
 echo "Symlink verification:"
-ls -la "$TARGET_DIR" | grep -E "agents|hooks|commands|CLAUDE.md"
+ls -la "$TARGET_DIR" | grep -E "agents|hooks|commands|skills|CLAUDE.md"
 echo ""

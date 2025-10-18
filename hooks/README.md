@@ -71,7 +71,7 @@ mkdir -p ~/.claude
         "hooks": [
           {
             "type": "command",
-            "command": "/home/hamel/.claude/hooks/docker-command-guard.py"
+            "command": "~/.claude/hooks/docker-command-guard.py"
           }
         ]
       }
@@ -79,6 +79,8 @@ mkdir -p ~/.claude
   }
 }
 ```
+
+**Note**: The `~/.claude/hooks/` path works because hooks are symlinked from `claude-config/hooks/`. This makes the configuration portable across different user accounts.
 
 3. **Restart Claude Code** for hooks to take effect.
 
@@ -134,7 +136,7 @@ Django management commands require the Postgres database running in Docker.
 
 ### Customization
 
-Edit `/home/hamel/.claude/hooks/docker-command-guard.py` to:
+Edit `~/.claude/hooks/docker-command-guard.py` (or `claude-config/hooks/docker-command-guard.py`) to:
 
 - Add more blocked patterns to `BLOCKED_PATTERNS`
 - Add more allowed patterns to `ALLOWED_PATTERNS`
@@ -293,7 +295,7 @@ Add to `~/.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "/home/hmesfin/claude-config/hooks/docker-command-guard.py"
+            "command": "~/.claude/hooks/docker-command-guard.py"
           }
         ]
       },
@@ -302,7 +304,7 @@ Add to `~/.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "/home/hmesfin/claude-config/hooks/typescript-quality-guard.py"
+            "command": "~/.claude/hooks/typescript-quality-guard.py"
           }
         ]
       }
@@ -365,7 +367,7 @@ echo '{"tool_name": "Write", "tool_input": {"file_path": "frontend/src/component
 
 ### Customization
 
-Edit `/home/hmesfin/claude-config/hooks/typescript-quality-guard.py` to:
+Edit `~/.claude/hooks/typescript-quality-guard.py` (or `claude-config/hooks/typescript-quality-guard.py`) to:
 
 - Add more pattern warnings for specific file types
 - Customize warning messages based on your patterns
@@ -395,7 +397,7 @@ Store type safety:
 
 ### Related Documentation
 
-- `frontend/TYPESCRIPT_PATTERNS.md` - Pattern reference library
+- `skills/TYPESCRIPT_PATTERNS.md` - Pattern reference library (battle-tested from 584→111 error reduction)
 - `/lint-and-format --frontend` - Error categorization tool
 - [Claude Code Hooks Guide](https://docs.claude.com/en/docs/claude-code/hooks-guide.md)
 - [Claude Code Settings](https://docs.claude.com/en/docs/claude-code/settings)
