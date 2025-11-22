@@ -23,12 +23,29 @@
             "command": "/home/hamel/.claude/hooks/docker-command-guard.py"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/hamel/.claude/hooks/maestro-orchestration-reminder.py"
+          },
+          {
+            "type": "command",
+            "command": "python3 /home/hamel/.claude/hooks/prevent-autonomous-coding.py"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "Edit|MultiEdit|Write",
         "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/hamel/.claude/hooks/evidence-based-completion.py"
+          },
           {
             "type": "command",
             "command": "if echo \"$CLAUDE_FILE_PATHS\" | grep -q '\\.py$'; then ruff check --fix \"$CLAUDE_FILE_PATHS\" && black \"$CLAUDE_FILE_PATHS\"; fi"
