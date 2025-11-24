@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Auto-Progress Tracking Hook
+Auto-Progress Tracking Hook (P0.1 + P1.2)
 Automatically manages GitHub issues based on git commit messages.
 
 Triggers: After git commit with issue references (fixes #N, closes #N, resolves #N)
 Actions:
   1. Close referenced GitHub issue
   2. Post progress comment
-  3. Suggest next sequential issue
+  3. Detect and unlock dependent issues (P1.2)
+  4. Suggest next sequential issue
 """
 
 import json
@@ -71,6 +72,81 @@ def get_current_repo() -> Optional[str]:
         print(f"Error getting repo: {e}", file=sys.stderr)
 
     return None
+
+
+def parse_dependencies(issue_body: str) -> List[int]:
+    """
+    Parse dependency declarations from issue body.
+
+    Supported formats:
+    - UNLOCKS: #15, #16, #17
+    - BLOCKS: #20
+    - Depends on: #10
+
+    Returns: List of issue numbers that are unlocked/blocked by this issue
+    """
+    if not issue_body:
+        return []
+
+    dependencies = []
+
+    # Patterns for dependency declarations
+    patterns = [
+        r'UNLOCKS?:\s*#?(\d+(?:\s*,\s*#?\d+)*)',  # UNLOCKS: #15, #16
+        r'BLOCKS?:\s*#?(\d+(?:\s*,\s*#?\d+)*)',    # BLOCKS: #20
+        r'ENABLES?:\s*#?(\d+(?:\s*,\s*#?\d+)*)',   # ENABLES: #15
+    ]
+
+    for pattern in patterns:
+        matches = re.finditer(pattern, issue_body, re.IGNORECASE | re.MULTILINE)
+        for match in matches:
+            # Extract all numbers from the matched string
+            numbers = re.findall(r'\d+', match.group(1))
+            dependencies.extend([int(num) for num in numbers])
+
+    return list(set(dependencies))  # Remove duplicates
+
+
+def unlock_dependent_issues(
+    api: GitHubAPI,
+    owner: str,
+    repo: str,
+    closed_issue_number: int,
+    dependent_issues: List[int]
+) -> List[int]:
+    """
+    Unlock dependent issues by adding 'ready' label and posting comment.
+
+    Returns: List of successfully unlocked issue numbers
+    """
+    unlocked = []
+
+    for dep_issue_num in dependent_issues:
+        try:
+            # Check if issue exists and is open
+            issue = api.get_issue(owner, repo, dep_issue_num)
+            if not issue or issue.get('state') != 'open':
+                continue
+
+            # Add 'ready' label
+            current_labels = api.get_issue_labels(owner, repo, dep_issue_num)
+            if 'ready' not in current_labels:
+                api.add_labels(owner, repo, dep_issue_num, ['ready'])
+
+            # Post comment
+            comment = (
+                f"✅ **Dependency Resolved**\n\n"
+                f"Issue #{closed_issue_number} has been completed.\n"
+                f"This issue is now unblocked and ready to start! 🚀"
+            )
+            api.add_comment(owner, repo, dep_issue_num, comment)
+
+            unlocked.append(dep_issue_num)
+
+        except Exception as e:
+            print(f"Error unlocking issue #{dep_issue_num}: {e}", file=sys.stderr)
+
+    return unlocked
 
 
 def close_issue_with_comment(api: GitHubAPI, owner: str, repo: str, issue_number: int) -> bool:
@@ -149,17 +225,34 @@ def main():
                 if close_issue_with_comment(api, target_owner, target_repo, issue_number):
                     closed_issues.append(issue_number)
 
+                    # P1.2: Check for dependencies and unlock dependent issues
+                    issue_data = api.get_issue(target_owner, target_repo, issue_number)
+                    if issue_data and issue_data.get('body'):
+                        dependencies = parse_dependencies(issue_data['body'])
+                        if dependencies:
+                            unlocked = unlock_dependent_issues(
+                                api, target_owner, target_repo, issue_number, dependencies
+                            )
+                            if unlocked:
+                                dep_msg = f"\n🔓 Unlocked issues: {', '.join(f'#{n}' for n in unlocked)}"
+                            else:
+                                dep_msg = ""
+                        else:
+                            dep_msg = ""
+                    else:
+                        dep_msg = ""
+
                     # Suggest next issue
                     next_issue = api.get_next_open_issue(target_owner, target_repo, issue_number)
                     if next_issue:
                         print(json.dumps({
-                            "systemMessage": f"✅ Closed issue #{issue_number}\n"
+                            "systemMessage": f"✅ Closed issue #{issue_number}{dep_msg}\n"
                                            f"🚀 Next issue: #{next_issue}\n"
                                            f"Tip: You can say 'Show me issue #{next_issue}' to start working on it"
                         }))
                     else:
                         print(json.dumps({
-                            "systemMessage": f"✅ Closed issue #{issue_number}\n"
+                            "systemMessage": f"✅ Closed issue #{issue_number}{dep_msg}\n"
                                            f"🎉 No more open issues!"
                         }))
 

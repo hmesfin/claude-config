@@ -99,3 +99,26 @@ class GitHubAPI:
                 return issue['number']
 
         return None
+
+    def add_labels(self, owner: str, repo: str, issue_number: int, labels: List[str]) -> bool:
+        """Add labels to an issue."""
+        url = f'{self.base_url}/repos/{owner}/{repo}/issues/{issue_number}/labels'
+
+        try:
+            response = requests.post(
+                url,
+                headers=self.headers,
+                json={'labels': labels},
+                timeout=10
+            )
+            response.raise_for_status()
+            return True
+        except Exception:
+            return False
+
+    def get_issue_labels(self, owner: str, repo: str, issue_number: int) -> List[str]:
+        """Get labels for an issue."""
+        issue = self.get_issue(owner, repo, issue_number)
+        if issue and 'labels' in issue:
+            return [label['name'] for label in issue['labels']]
+        return []
