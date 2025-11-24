@@ -1,0 +1,207 @@
+# Contractor Assignment Intelligence - Profile Configuration
+# Copy this file to .contractors.yml and customize for your team
+
+version: "1.0"
+
+contractors:
+  # Example Contractor A - Backend Specialist
+  contractor_a:
+    name: "Alex Chen"
+    github_username: "alexchen"  # For auto-assignment
+
+    skills:
+      # Backend
+      - django
+      - python
+      - rest-api
+      - postgresql
+      - websockets
+      - real-time
+      - celery
+      - async
+
+      # General
+      - backend
+      - database
+      - performance
+      - optimization
+
+    specialty: "backend"  # Primary focus area
+
+    velocity:
+      issues_per_week: 1.5  # Average completion rate
+      avg_pr_size: 450      # Average lines changed per PR
+      avg_time_to_complete: 5  # Days per issue
+
+    availability:
+      hours_per_week: 20
+      timezone: "PST"
+      preferred_days: ["Monday", "Tuesday", "Wednesday"]
+
+    preferences:
+      max_concurrent_issues: 2
+      prefers_backend: true
+      prefers_complex: true
+      avoid_labels: ["mobile", "ui"]  # Skills they prefer not to work on
+
+    performance:
+      quality_score: 9.5    # Out of 10 (code review feedback)
+      reliability_score: 9.0  # Out of 10 (deadline adherence)
+      communication_score: 8.5  # Out of 10 (responsiveness)
+
+  # Example Contractor B - Full-Stack with Mobile Focus
+  contractor_b:
+    name: "Maria Rodriguez"
+    github_username: "mariarodriguez"
+
+    skills:
+      # Mobile
+      - react-native
+      - mobile
+      - ios
+      - android
+      - expo
+      - javascript
+      - typescript
+
+      # Frontend
+      - vue
+      - react
+      - ui
+      - ux
+      - frontend
+      - tailwind
+
+      # General
+      - crud
+      - simple
+      - standard
+
+    specialty: "mobile"
+
+    velocity:
+      issues_per_week: 2.0
+      avg_pr_size: 300
+      avg_time_to_complete: 3
+
+    availability:
+      hours_per_week: 30
+      timezone: "EST"
+      preferred_days: ["Tuesday", "Wednesday", "Thursday", "Friday"]
+
+    preferences:
+      max_concurrent_issues: 3
+      prefers_mobile: true
+      prefers_simple: true  # Prefers well-defined, straightforward work
+      avoid_labels: ["architecture", "security", "complex"]
+
+    performance:
+      quality_score: 8.5
+      reliability_score: 9.5
+      communication_score: 9.0
+
+  # Example Contractor C - Security & Architecture Specialist
+  contractor_c:
+    name: "Jordan Kim"
+    github_username: "jordankim"
+
+    skills:
+      # Security
+      - security
+      - authentication
+      - authorization
+      - rbac
+      - oauth
+      - jwt
+
+      # Architecture
+      - architecture
+      - system-design
+      - microservices
+      - scalability
+
+      # Backend
+      - python
+      - django
+      - fastapi
+      - postgresql
+
+    specialty: "security"
+
+    velocity:
+      issues_per_week: 1.0  # Lower velocity but high complexity
+      avg_pr_size: 600
+      avg_time_to_complete: 7
+
+    availability:
+      hours_per_week: 15
+      timezone: "UTC"
+      preferred_days: ["Monday", "Friday"]
+
+    preferences:
+      max_concurrent_issues: 1  # Prefers to focus on one complex task
+      prefers_complex: true
+      prefers_security: true
+      avoid_labels: ["simple", "crud", "ui-only"]
+
+    performance:
+      quality_score: 10.0  # Exceptional quality
+      reliability_score: 8.0  # Slower but thorough
+      communication_score: 7.5
+
+# Team Configuration
+team:
+  total_capacity: 4.5  # Total issues/week across all contractors
+
+  # Workload balancing strategy
+  balancing_strategy: "optimal"  # Options: "optimal", "equal", "velocity-based"
+
+  # Priority weights for assignment algorithm
+  weights:
+    skill_match: 0.40      # 40% - How well skills match issue requirements
+    availability: 0.25     # 25% - Current workload and capacity
+    velocity: 0.20         # 20% - Historical velocity and performance
+    specialty_match: 0.15  # 15% - Issue matches contractor's specialty
+
+  # Auto-assignment rules
+  auto_assign:
+    enabled: false  # Set to true to auto-assign via GitHub
+    require_approval: true  # Post suggestion as comment vs auto-assign
+    min_score_threshold: 70  # Only suggest if match score >= 70%
+
+# Historical Performance Tracking (optional - auto-updated)
+history:
+  # Tracked automatically when issues close
+  contractor_a:
+    total_issues_completed: 12
+    total_prs_merged: 15
+    avg_review_iterations: 2.3
+    issue_types:
+      backend: 10
+      database: 5
+      performance: 3
+
+  contractor_b:
+    total_issues_completed: 20
+    total_prs_merged: 22
+    avg_review_iterations: 1.8
+    issue_types:
+      mobile: 15
+      ui: 10
+      frontend: 8
+
+  contractor_c:
+    total_issues_completed: 8
+    total_prs_merged: 10
+    avg_review_iterations: 3.5
+    issue_types:
+      security: 6
+      architecture: 4
+      complex: 8
+
+# Notes:
+# - Copy this to .contractors.yml in your project root
+# - Update contractor details to match your team
+# - Skills should match your issue labels for best matching
+# - Velocity metrics can be tracked over time
+# - Performance scores help with assignment quality
