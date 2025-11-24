@@ -1,0 +1,409 @@
+# Risk Alert System
+
+Automated monitoring system that identifies high-risk issues and proactively alerts your team.
+
+## Features
+
+- 🔍 **Smart Risk Detection**: Analyzes multiple risk factors with weighted scoring
+- 🎯 **Priority-Based Thresholds**: Different timing thresholds for P0/P1/P2 issues
+- 📊 **Comprehensive Reporting**: Daily summaries with actionable recommendations
+- 💬 **Automatic Alerts**: Posts comments on critical issues
+- 📈 **Trend Tracking**: Monitor risk levels over time
+- ⚙️ **Configurable**: Customize thresholds and alert behavior
+
+## Risk Scoring Algorithm
+
+Each issue gets a risk score (0-100) based on:
+
+| Factor | Max Points | Trigger |
+|--------|-----------|---------|
+| **Days Open** | 30 | P0: >3 days, P1: >7 days, P2: >14 days |
+| **Explicit Risk Marker** | 30 | Issue body contains "RISK:" |
+| **Stale (No Updates)** | 20 | No activity in 7+ days |
+| **No Comments** | 15 | Zero comments and open >2 days |
+| **Milestone Deadline** | 20 | Due in ≤14 days |
+| **Blocked** | 15 | Marked as blocked or has blocker |
+
+**Risk Levels**:
+- 🔴 **CRITICAL** (70-100): Immediate attention required
+- 🟠 **HIGH** (50-69): At risk of causing delays
+- 🟡 **MEDIUM** (30-49): Monitor closely
+- 🟢 **LOW** (0-29): Normal progress
+
+## Setup
+
+### 1. Copy Files to Your Project
+
+```bash
+cd ~/projects/your-project
+
+# Create directories
+mkdir -p .github/workflows .github/scripts
+
+# Copy workflow
+cp ~/claude-config/github-actions/risk-alert/risk-alert.yml \
+   .github/workflows/
+
+# Copy script
+cp ~/claude-config/github-actions/risk-alert/risk_alert.py \
+   .github/scripts/
+
+# Make script executable
+chmod +x .github/scripts/risk_alert.py
+```
+
+### 2. Configure (Optional)
+
+Edit `.github/scripts/risk_alert.py` to customize:
+
+```python
+# Risk thresholds
+RISK_THRESHOLDS = {
+    'critical': 70,  # Change to 80 for stricter critical threshold
+    'high': 50,
+    'medium': 30,
+    'low': 0,
+}
+
+# Days open thresholds by priority
+DAYS_OPEN_THRESHOLDS = {
+    'P0': 3,    # Change to 2 for faster P0 alerts
+    'P1': 7,    # Change to 5 for faster P1 alerts
+    'P2': 14,
+    'default': 21,
+}
+
+# Stale threshold
+STALE_THRESHOLD_DAYS = 7  # Change to 5 for faster stale detection
+
+# Auto-commenting
+POST_COMMENTS = True  # Set to False to disable auto-alerts
+```
+
+### 3. Commit and Push
+
+```bash
+git add .github/
+git commit -m "feat: Add Risk Alert System"
+git push
+```
+
+### 4. Schedule (Optional)
+
+The workflow runs daily at 9 AM UTC by default. To change:
+
+Edit `.github/workflows/risk-alert.yml`:
+
+```yaml
+on:
+  schedule:
+    - cron: '0 14 * * *'  # 2 PM UTC (9 AM EST)
+```
+
+## Usage
+
+### On-Demand Analysis
+
+In Claude Code:
+```
+/risk-check
+```
+
+### Automated Daily Monitoring
+
+GitHub Actions runs automatically every day and:
+1. Analyzes all open issues
+2. Calculates risk scores
+3. Posts alerts on CRITICAL issues
+4. Saves report artifact
+5. Fails workflow if critical issues found (draws attention)
+
+### Manual Trigger
+
+From GitHub:
+1. Go to **Actions** tab
+2. Select **Risk Alert System**
+3. Click **Run workflow**
+
+## Example Output
+
+### Slash Command (`/risk-check`)
+
+```markdown
+# 🚨 Risk Alert Report: MyFamApp
+
+**Generated**: 2025-11-24 15:30 UTC
+**Open Issues Analyzed**: 15
+
+---
+
+## 📊 Risk Summary
+
+- 🔴 **CRITICAL**: 2 issues (need immediate attention)
+- 🟠 **HIGH**: 3 issues (at risk of causing delays)
+- 🟡 **MEDIUM**: 5 issues (monitor closely)
+- 🟢 **LOW**: 5 issues (normal progress)
+
+**Overall Project Health**: 🔴 CRITICAL - Immediate action required
+
+---
+
+## 🔴 CRITICAL Risk Issues
+
+### Issue #45: Database migration for user profiles (Risk Score: 85/100)
+
+**Why it's risky**:
+- ⏰ Open for 15 days (P0 threshold: 3 days) → +24 pts
+- 🚨 Marked with "RISK: Complex schema changes affect 10k users" → +30 pts
+- 📅 No activity in 8 days → +16 pts
+- 🎯 Milestone "v1.0" due in 2 days → +20 pts
+
+**Recommended Actions**:
+1. Assign to senior database engineer immediately
+2. Schedule sync meeting to review migration plan
+3. Consider rollback strategy
+4. Test on staging with production data snapshot
+
+**Links**: [View Issue](https://github.com/...) | [Edit](https://github.com/...)
+```
+
+### GitHub Action Alert Comment
+
+Posted automatically on critical issues:
+
+```markdown
+🚨 **Risk Alert: 🔴 CRITICAL Risk**
+
+This issue has been identified as **CRITICAL** risk (score: 85/100).
+
+**Risk Factors**:
+- ⏰ Open for 15 days (P0 threshold: 3 days) → +24 pts
+- 🚨 Marked with "RISK: Complex schema changes affect 10k users" → +30 pts
+- 📅 No activity in 8 days → +16 pts
+- 🎯 Milestone "v1.0" due in 2 days → +20 pts
+
+**Recommended Actions**:
+1. Assign to senior database engineer immediately
+2. Schedule sync meeting to review migration plan
+3. Consider rollback strategy
+4. Test on staging with production data snapshot
+
+Please update status or request help if needed.
+
+---
+🤖 Generated by Risk Alert System - Run `/risk-check` for full report
+```
+
+## Best Practices
+
+### 1. Mark High-Risk Work
+
+When creating issues for risky work, add explicit markers:
+
+```markdown
+## Description
+Implement real-time WebSocket connections for 10k concurrent users
+
+## Risk Assessment
+RISK: Complex concurrency handling, potential memory leaks, load testing required
+
+## Implementation
+...
+```
+
+### 2. Use Priority Labels
+
+Label issues with priority:
+- `P0` or `critical`: Most urgent, 3-day threshold
+- `P1` or `high`: Important, 7-day threshold
+- `P2` or `medium`: Normal, 14-day threshold
+
+### 3. Keep Issues Updated
+
+Comment regularly to show progress:
+- Prevents "no comments" risk flag
+- Resets "stale" counter
+- Keeps team informed
+
+### 4. Review Alerts Daily
+
+Set up notifications:
+```yaml
+# In workflow, add notification step:
+- name: Notify team
+  if: failure()
+  uses: 8398a7/action-slack@v3
+  with:
+    status: ${{ job.status }}
+    text: '🚨 Critical risk issues detected! Check Actions tab.'
+  env:
+    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+```
+
+### 5. Mark Blockers Explicitly
+
+If issue is blocked:
+
+```markdown
+## Status
+BLOCKED: Waiting on API keys from DevOps team (issue #123)
+
+## Next Steps
+- Follow up with DevOps daily
+- Consider workaround with mock data
+```
+
+## Troubleshooting
+
+### Workflow Not Running
+
+**Check schedule**:
+```bash
+gh workflow list
+gh run list --workflow="Risk Alert System"
+```
+
+**Trigger manually**:
+```bash
+gh workflow run "Risk Alert System"
+```
+
+### No Comments Posted
+
+**Verify permissions**:
+```yaml
+permissions:
+  issues: write  # Required for posting comments
+```
+
+**Check `POST_COMMENTS` flag**:
+```python
+POST_COMMENTS = True  # In risk_alert.py
+```
+
+### False Positives
+
+**Adjust thresholds**:
+```python
+# Increase critical threshold
+RISK_THRESHOLDS['critical'] = 80  # From 70
+
+# Increase days open threshold for P1
+DAYS_OPEN_THRESHOLDS['P1'] = 10  # From 7
+```
+
+**Exclude specific issues**:
+```python
+# In risk_alert.py, add filter:
+if issue.number in [45, 67]:  # Long-running research issues
+    continue
+```
+
+### Too Many Alerts
+
+**Daily limit**:
+```python
+# Add at top of post_risk_alert_comment():
+MAX_ALERTS_PER_RUN = 5
+
+if len([c for c in repo.get_issues() if 'Risk Alert' in c.body]) >= MAX_ALERTS_PER_RUN:
+    print(f"Reached max alerts for today ({MAX_ALERTS_PER_RUN})")
+    return
+```
+
+**Only alert once**:
+```python
+# Already implemented - checks last 5 comments before posting
+```
+
+## Integration with Other Tools
+
+### Slack Notifications
+
+Add Slack webhook to workflow:
+
+```yaml
+- name: Notify Slack
+  if: failure()
+  run: |
+    curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+      -H 'Content-Type: application/json' \
+      -d '{"text":"🚨 Critical risk issues detected in ${{ github.repository }}"}'
+```
+
+### Velocity Dashboard
+
+Combined workflow:
+
+```bash
+# Daily standup
+/risk-check    # Check risks
+/velocity      # Check progress
+
+# Correlate metrics:
+# - High risk + low velocity = capacity issue
+# - Low risk + high velocity = healthy project
+```
+
+### Issue Templates
+
+Add risk assessment to issue template:
+
+```markdown
+## Risk Assessment (required for P0/P1)
+
+**Risk Level**: [Low | Medium | High]
+**Risk Description**: RISK: [describe potential issues]
+
+Example: RISK: External API dependency, rate limits unknown
+```
+
+## Metrics to Track
+
+After 2 weeks of usage:
+
+| Metric | Target | Actual |
+|--------|--------|--------|
+| Critical issues caught before crisis | 90%+ | TBD |
+| Average days open for P0 issues | <3 days | TBD |
+| Average days open for P1 issues | <7 days | TBD |
+| False positive rate | <20% | TBD |
+| Team response time to alerts | <24 hours | TBD |
+
+## FAQ
+
+**Q: Will this spam my issues with comments?**
+A: No - the script checks last 5 comments and only posts if no recent alert exists.
+
+**Q: Can I run this locally?**
+A: Yes! Set environment variables and run:
+```bash
+export GITHUB_TOKEN="your-token"
+export REPOSITORY="owner/repo"
+python .github/scripts/risk_alert.py
+```
+
+**Q: What if I want weekly instead of daily?**
+A: Change cron schedule:
+```yaml
+- cron: '0 9 * * 1'  # Every Monday at 9 AM
+```
+
+**Q: Can I customize risk recommendations?**
+A: Yes! Edit `generate_recommendations()` in `risk_alert.py`
+
+**Q: Does this work with private repos?**
+A: Yes - uses `GITHUB_TOKEN` which has access to the repo running the action
+
+## Version History
+
+- **v1.0** (2025-11-24): Initial implementation
+  - Risk scoring algorithm
+  - Automated daily monitoring
+  - Critical issue alerts
+  - Integration with `/risk-check` command
+
+---
+
+🤖 **Part of the GitHub MCP Enhancement Suite**
+See `docs/P2_IMPLEMENTATION.md` for full P2 features
