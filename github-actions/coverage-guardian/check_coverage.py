@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""
+Test Coverage Guardian Script
+Analyzes test coverage and enforces quality gates.
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Dict, List
+
+
+# Coverage thresholds
+MINIMUM_COVERAGE = 85.0
+SECURITY_COVERAGE = 95.0
+
+# Security-related file patterns
+SECURITY_PATTERNS = [
+    'auth',
+    'security',
+    'permission',
+    'token',
+    'password',
+    'encryption',
+    'crypto',
+]
+
+
+def load_coverage_data() -> Dict:
+    """Load coverage data from pytest-cov JSON output."""
+    coverage_file = Path('coverage.json')
+
+    if not coverage_file.exists():
+        print("❌ No coverage.json found", file=sys.stderr)
+        return {}
+
+    with open(coverage_file) as f:
+        return json.load(f)
+
+
+def is_security_file(filepath: str) -> bool:
+    """Check if file is security-related based on patterns."""
+    filepath_lower = filepath.lower()
+    return any(pattern in filepath_lower for pattern in SECURITY_PATTERNS)
+
+
+def analyze_coverage(data: Dict) -> Dict:
+    """Analyze coverage data and generate report."""
+    if not data or 'totals' not in data:
+        return {
+            'passed': False,
+            'total_coverage': 0.0,
+            'issues': ['No coverage data available']
+        }
+
+    # Overall coverage
+    total_coverage = data['totals'].get('percent_covered', 0.0)
+
+    # Analyze file-level coverage
+    issues = []
+    security_issues = []
+
+    files = data.get('files', {})
+    for filepath, file_data in files.items():
+        file_coverage = file_data['summary'].get('percent_covered', 0.0)
+
+        # Check minimum threshold
+        if file_coverage < MINIMUM_COVERAGE:
+            missing_lines = file_data['summary'].get('missing_lines', 0)
+            issues.append({
+                'file': filepath,
+                'coverage': file_coverage,
+                'missing_lines': missing_lines,
+                'threshold': MINIMUM_COVERAGE
+            })
+
+        # Check security file threshold
+        if is_security_file(filepath) and file_coverage < SECURITY_COVERAGE:
+            security_issues.append({
+                'file': filepath,
+                'coverage': file_coverage,
+                'threshold': SECURITY_COVERAGE
+            })
+
+    # Determine if check passed
+    passed = (
+        total_coverage >= MINIMUM_COVERAGE and
+        len(security_issues) == 0
+    )
+
+    return {
+        'passed': passed,
+        'total_coverage': total_coverage,
+        'minimum_threshold': MINIMUM_COVERAGE,
+        'security_threshold': SECURITY_COVERAGE,
+        'issues': issues,
+        'security_issues': security_issues,
+        'total_files': len(files),
+        'files_below_threshold': len(issues)
+    }
+
+
+def format_coverage_comment(analysis: Dict) -> str:
+    """Generate formatted markdown comment for PR."""
+    passed = analysis['passed']
+    total_cov = analysis['total_coverage']
+
+    # Header with status emoji
+    if passed:
+        header = f"✅ **Test Coverage Report - PASSED**"
+    else:
+        header = f"❌ **Test Coverage Report - FAILED**"
+
+    # Overall metrics
+    metrics = f"""
+## {header}
+
+📊 **Overall Coverage**: {total_cov:.1f}% (target: {analysis['minimum_threshold']:.0f}%)
+
+**Summary:**
+- Total Files: {analysis['total_files']}
+- Files Below Threshold: {analysis['files_below_threshold']}
+- Security Files Below Threshold: {len(analysis.get('security_issues', []))}
+"""
+
+    # Issues section
+    if analysis['issues']:
+        metrics += "\n## ⚠️ Files Below Coverage Threshold\n\n"
+        metrics += "| File | Coverage | Missing Lines | Target |\n"
+        metrics += "|------|----------|--------------|--------|\n"
+
+        for issue in analysis['issues'][:10]:  # Limit to top 10
+            metrics += (
+                f"| `{issue['file']}` | "
+                f"{issue['coverage']:.1f}% | "
+                f"{issue['missing_lines']} | "
+                f"{issue['threshold']:.0f}% |\n"
+            )
+
+        if len(analysis['issues']) > 10:
+            metrics += f"\n*...and {len(analysis['issues']) - 10} more files*\n"
+
+    # Security issues section
+    if analysis.get('security_issues'):
+        metrics += "\n## 🔒 Security Files Requiring Higher Coverage\n\n"
+        metrics += "| File | Coverage | Required |\n"
+        metrics += "|------|----------|----------|\n"
+
+        for issue in analysis['security_issues']:
+            metrics += (
+                f"| `{issue['file']}` | "
+                f"{issue['coverage']:.1f}% | "
+                f"{issue['threshold']:.0f}% |\n"
+            )
+
+    # Action required
+    if not passed:
+        metrics += "\n## 📝 Action Required\n\n"
+        if analysis['issues']:
+            metrics += "- Add tests to increase coverage for files listed above\n"
+        if analysis.get('security_issues'):
+            metrics += "- Security-related files require >95% coverage\n"
+        metrics += "- Coverage check will block merge until requirements are met\n"
+
+    metrics += "\n---\n*🤖 Generated by Test Coverage Guardian*"
+
+    return metrics
+
+
+def main():
+    """Main entry point."""
+    # Load and analyze coverage
+    coverage_data = load_coverage_data()
+    analysis = analyze_coverage(coverage_data)
+
+    # Generate PR comment
+    comment = format_coverage_comment(analysis)
+
+    # Write report for GitHub Action to use
+    report = {
+        'passed': analysis['passed'],
+        'coverage': analysis['total_coverage'],
+        'comment': comment
+    }
+
+    with open('coverage_report.json', 'w') as f:
+        json.dump(report, f, indent=2)
+
+    # Set GitHub Action output
+    print(f"::set-output name=passed::{str(analysis['passed']).lower()}")
+    print(f"::set-output name=coverage::{analysis['total_coverage']:.1f}")
+
+    # Print summary
+    if analysis['passed']:
+        print(f"✅ Coverage check passed: {analysis['total_coverage']:.1f}%")
+        sys.exit(0)
+    else:
+        print(f"❌ Coverage check failed: {analysis['total_coverage']:.1f}%")
+        print(f"   Files below threshold: {analysis['files_below_threshold']}")
+        print(f"   Security files below threshold: {len(analysis.get('security_issues', []))}")
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()

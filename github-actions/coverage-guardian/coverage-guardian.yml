@@ -1,0 +1,93 @@
+name: Test Coverage Guardian
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  coverage-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better diff analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install pytest pytest-cov
+
+      - name: Run tests with coverage
+        run: |
+          pytest --cov=src --cov-report=json --cov-report=term
+        continue-on-error: true
+
+      - name: Check coverage threshold
+        id: coverage-check
+        run: |
+          python .github/scripts/check_coverage.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+
+      - name: Comment PR with coverage report
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let commentBody;
+
+            try {
+              const report = JSON.parse(fs.readFileSync('coverage_report.json', 'utf8'));
+              commentBody = report.comment;
+            } catch (error) {
+              commentBody = '⚠️ Could not generate coverage report';
+            }
+
+            // Find existing coverage comment
+            const {data: comments} = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const coverageBotComment = comments.find(comment =>
+              comment.user.type === 'Bot' && comment.body.includes('Test Coverage Report')
+            );
+
+            if (coverageBotComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: coverageBotComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }
+
+      - name: Fail if coverage too low
+        if: steps.coverage-check.outputs.passed == 'false'
+        run: |
+          echo "❌ Coverage check failed"
+          exit 1

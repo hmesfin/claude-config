@@ -401,3 +401,192 @@ Store type safety:
 - `/lint-and-format --frontend` - Error categorization tool
 - [Claude Code Hooks Guide](https://docs.claude.com/en/docs/claude-code/hooks-guide.md)
 - [Claude Code Settings](https://docs.claude.com/en/docs/claude-code/settings)
+
+---
+
+## Auto-Progress Tracking Hook (P0.1)
+
+**Purpose**: Automatically manage GitHub issues when you commit code with issue references.
+
+**Part of**: P0 GitHub Automation (see `docs/P0_IMPLEMENTATION.md`)
+
+### What It Does
+
+✅ **On git commit with issue references**:
+- Detects commits with `fixes #N`, `closes #N`, `resolves #N`
+- Automatically closes referenced GitHub issue
+- Posts progress comment: "15/27 complete (55%)"
+- Suggests next sequential open issue
+
+### Files
+
+- `post-tool-use/auto-progress-tracker.py` - Main hook script (PostToolUse)
+- `lib/github_automation.py` - GitHub REST API integration
+
+### Installation
+
+1. **Set GitHub Token** environment variable:
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+export GITHUB_TOKEN="your-github-pat-here"
+
+# Reload
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+2. **Hook configuration** (in `~/.claude/settings.json`):
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/post-tool-use/auto-progress-tracker.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+3. **Restart Claude Code** for hooks to take effect.
+
+### How It Works
+
+1. **After every Bash git commit**, hook analyzes commit message
+2. **Extracts issue references** using regex patterns
+3. **Calls GitHub API** to close issues and post comments
+4. **Outputs systemMessage** with next issue suggestion
+
+### Usage
+
+```bash
+# Working on issue #15
+git commit -m "fixes #15: Implement authentication system"
+
+# Hook runs automatically:
+# ✅ Closed issue #15
+# 📊 Progress: 15/27 (55%) complete
+# 🚀 Next issue: #16
+```
+
+### Supported Formats
+
+```bash
+# Basic reference
+git commit -m "fixes #15"
+
+# With description
+git commit -m "fixes #15: Add user auth"
+
+# Multiple issues
+git commit -m "fixes #15, closes #16"
+
+# Cross-repo reference
+git commit -m "fixes owner/repo#15"
+```
+
+### Supported Keywords
+
+- `fix` / `fixes`
+- `close` / `closes`
+- `resolve` / `resolves`
+
+**Note**: Simple `#N` references are detected but NOT auto-closed (only explicit keywords close issues).
+
+### Example Output
+
+**When issue is closed**:
+```
+✅ Closed issue #15
+🚀 Next issue: #16
+Tip: You can say 'Show me issue #16' to start working on it
+```
+
+**When no more issues**:
+```
+✅ Closed issue #27
+🎉 No more open issues!
+```
+
+### Requirements
+
+- Python 3.7+
+- `requests` library (install: `pip install requests`)
+- `GITHUB_TOKEN` environment variable set to your PAT
+- Git repository with GitHub remote
+
+### Testing the Hook
+
+```bash
+# Test without committing
+echo '{
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "git commit -m \"fixes #999: Test commit\""
+  }
+}' | ~/.claude/hooks/post-tool-use/auto-progress-tracker.py
+```
+
+### Troubleshooting
+
+**Hook not running:**
+- Check `GITHUB_TOKEN` is set: `echo $GITHUB_TOKEN`
+- Verify hook is executable: `ls -l ~/.claude/hooks/post-tool-use/auto-progress-tracker.py`
+- Check settings.json has PostToolUse configuration
+- Restart Claude Code
+
+**GitHub API errors:**
+```bash
+# Test GitHub API access
+curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user
+```
+
+**Issues not closing:**
+- Verify commit message uses keywords: `fixes`, `closes`, `resolves`
+- Check issue number exists in repository
+- Verify repository remote is GitHub
+
+### Safety
+
+- Hook never fails git commit (exits 0 even on errors)
+- Only closes issues with explicit keywords
+- Read-only access to repository info
+- No file modifications or system changes
+
+### GitHub API Library
+
+**Location**: `lib/github_automation.py`
+
+**Features**:
+- Direct GitHub REST API integration
+- Issue management (list, get, update, comment)
+- Progress calculation
+- Next issue suggestion
+
+**Usage** (in other hooks):
+```python
+from lib.github_automation import GitHubAPI
+
+api = GitHubAPI()  # Uses GITHUB_TOKEN from environment
+
+# Close issue
+api.update_issue('owner', 'repo', 15, state='closed')
+
+# Add comment
+api.add_comment('owner', 'repo', 15, 'Progress update')
+
+# Calculate progress
+progress = api.calculate_progress('owner', 'repo')
+# Returns: {'total': 27, 'closed': 15, 'open': 12, 'percentage': 55.5}
+```
+
+### Related
+
+- **Test Coverage Guardian**: See `github-actions/coverage-guardian/`
+- **Complete Documentation**: `docs/P0_IMPLEMENTATION.md`
+- **Enhancement Ideas**: `docs/GH_MCP_IDEAS.md`
