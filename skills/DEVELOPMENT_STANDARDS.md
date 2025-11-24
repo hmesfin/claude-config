@@ -559,7 +559,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ### 4. Documentation
 
 - `TYPESCRIPT_PATTERNS.md` - Battle-tested TypeScript patterns
-- `DOCKER_WORKFLOW.md` - Docker workflow guide
+- `docs/DOCKER_WORKFLOW.md` - Docker workflow guide
 - Agent-specific guides in `agents/` directory
 
 ---

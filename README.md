@@ -53,10 +53,23 @@ claude-config/
 │       ├── data-tdd-architect.md
 │       ├── tdd-test-specialist.md
 │       └── project-orchestrator.md
+├── agents/                    # Claude Code specialized agents (20+ agents)
 ├── hooks/                     # Git-style hooks for Claude Code
 ├── commands/                  # Custom slash commands
-├── CLAUDE.md                  # Global instructions for all projects
-├── STAGING_DEPLOYMENT.md      # Traefik staging deployment guide
+├── skills/                    # Development standards and patterns
+├── mcp-servers/               # MCP server configurations
+├── docs/                      # Project documentation
+│   ├── GH_MCP_IDEAS.md       # GitHub MCP automation ideas
+│   ├── P0_IMPLEMENTATION.md  # P0 features documentation
+│   ├── P1_IMPLEMENTATION.md  # P1 features documentation
+│   ├── P2_IMPLEMENTATION.md  # P2 features documentation
+│   ├── DOCKER_WORKFLOW.md    # Docker workflow guide
+│   ├── MULTI_MACHINE_SETUP.md # Multi-machine sync guide
+│   ├── ROADMAP.md            # Project roadmap
+│   ├── STAGING_DEPLOYMENT.md # Traefik staging deployment guide
+│   └── archive/              # Historical documentation
+├── .claude/                   # Project-specific Claude Code settings
+├── CLAUDE.md                  # Global instructions (symlinked to ~/.claude/CLAUDE.md)
 ├── setup-claude-symlinks.sh   # Symlink setup script
 └── README.md                  # This file
 ```
@@ -210,8 +223,21 @@ mv ~/.claude.backup.YYYYMMDD_HHMMSS ~/.claude
 
 ## 📚 Documentation
 
-- [Staging Deployment Guide](STAGING_DEPLOYMENT.md) - Traefik multi-tenant setup
-- [Global Instructions](CLAUDE.md) - Default behavior for all projects
+### Core Documentation
+- [Global Instructions](CLAUDE.md) - Default behavior for all projects (symlinked to ~/.claude/)
+- [Development Standards](skills/DEVELOPMENT_STANDARDS.md) - Mandatory coding standards
+- [Docker Workflow](docs/DOCKER_WORKFLOW.md) - Docker development workflow
+- [Multi-Machine Setup](docs/MULTI_MACHINE_SETUP.md) - Sync across machines
+
+### Deployment Guides
+- [Staging Deployment](docs/STAGING_DEPLOYMENT.md) - Traefik multi-tenant setup
+
+### GitHub MCP Automation
+- [GitHub MCP Ideas](docs/GH_MCP_IDEAS.md) - Automation enhancement roadmap
+- [P0 Implementation](docs/P0_IMPLEMENTATION.md) - Critical features (Auto-Progress, Test Coverage)
+- [P1 Implementation](docs/P1_IMPLEMENTATION.md) - High-value features (Code Review, Velocity, Dependencies)
+- [P2 Implementation](docs/P2_IMPLEMENTATION.md) - Nice-to-have features (Release Notes, Risk Alerts, Batching)
+- [Roadmap](docs/ROADMAP.md) - Overall project roadmap
 
 ## 🤝 Contributing
 
