@@ -686,4 +686,1081 @@ cd ios && pod install
 cd android && ./gradlew build
 ```
 
+## 📱 Native UI Components (Fabric) TDD
+
+```typescript
+// FIRST: Native UI component tests
+// File: modules/video-player/js/__tests__/NativeVideoPlayer.test.tsx
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react-native';
+import VideoPlayer from '../VideoPlayer';
+
+jest.mock('react-native', () => ({
+  ...jest.requireActual('react-native'),
+  requireNativeComponent: () => 'NativeVideoPlayer',
+  UIManager: {
+    getViewManagerConfig: jest.fn(() => ({
+      Commands: {
+        play: 1,
+        pause: 2,
+        seek: 3,
+      },
+    })),
+    dispatchViewManagerCommand: jest.fn(),
+  },
+}));
+
+describe('VideoPlayer Native Component', () => {
+  it('renders native component with source', () => {
+    const { getByTestId } = render(
+      <VideoPlayer
+        testID="video-player"
+        source={{ uri: 'https://example.com/video.mp4' }}
+      />
+    );
+
+    expect(getByTestId('video-player')).toBeTruthy();
+  });
+
+  it('calls onLoad when video loads', () => {
+    const onLoad = jest.fn();
+
+    const { getByTestId } = render(
+      <VideoPlayer
+        testID="video-player"
+        source={{ uri: 'https://example.com/video.mp4' }}
+        onLoad={onLoad}
+      />
+    );
+
+    // Simulate native event
+    fireEvent(getByTestId('video-player'), 'onLoad', {
+      duration: 120,
+      naturalSize: { width: 1920, height: 1080 },
+    });
+
+    expect(onLoad).toHaveBeenCalledWith({
+      duration: 120,
+      naturalSize: { width: 1920, height: 1080 },
+    });
+  });
+
+  it('calls onProgress during playback', () => {
+    const onProgress = jest.fn();
+
+    const { getByTestId } = render(
+      <VideoPlayer
+        testID="video-player"
+        source={{ uri: 'https://example.com/video.mp4' }}
+        onProgress={onProgress}
+      />
+    );
+
+    fireEvent(getByTestId('video-player'), 'onProgress', {
+      currentTime: 30,
+      playableDuration: 60,
+    });
+
+    expect(onProgress).toHaveBeenCalledWith(
+      expect.objectContaining({ currentTime: 30 })
+    );
+  });
+
+  it('sends play command to native', () => {
+    const { UIManager } = require('react-native');
+    const ref = React.createRef<any>();
+
+    render(
+      <VideoPlayer
+        ref={ref}
+        source={{ uri: 'https://example.com/video.mp4' }}
+      />
+    );
+
+    ref.current?.play();
+
+    expect(UIManager.dispatchViewManagerCommand).toHaveBeenCalledWith(
+      expect.anything(),
+      1, // play command
+      []
+    );
+  });
+
+  it('sends seek command with position', () => {
+    const { UIManager } = require('react-native');
+    const ref = React.createRef<any>();
+
+    render(
+      <VideoPlayer
+        ref={ref}
+        source={{ uri: 'https://example.com/video.mp4' }}
+      />
+    );
+
+    ref.current?.seek(45);
+
+    expect(UIManager.dispatchViewManagerCommand).toHaveBeenCalledWith(
+      expect.anything(),
+      3, // seek command
+      [45]
+    );
+  });
+
+  it('handles error events from native', () => {
+    const onError = jest.fn();
+
+    const { getByTestId } = render(
+      <VideoPlayer
+        testID="video-player"
+        source={{ uri: 'https://example.com/video.mp4' }}
+        onError={onError}
+      />
+    );
+
+    fireEvent(getByTestId('video-player'), 'onError', {
+      error: { code: 'PLAYER_ERROR', message: 'Playback failed' },
+    });
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 'PLAYER_ERROR' }),
+      })
+    );
+  });
+});
+
+// THEN: Native UI component implementation
+// File: modules/video-player/js/VideoPlayer.tsx
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+import {
+  requireNativeComponent,
+  UIManager,
+  findNodeHandle,
+  ViewStyle,
+} from 'react-native';
+
+interface VideoSource {
+  uri: string;
+  headers?: Record<string, string>;
+}
+
+interface VideoPlayerProps {
+  source: VideoSource;
+  style?: ViewStyle;
+  paused?: boolean;
+  muted?: boolean;
+  volume?: number;
+  onLoad?: (data: { duration: number; naturalSize: { width: number; height: number } }) => void;
+  onProgress?: (data: { currentTime: number; playableDuration: number }) => void;
+  onEnd?: () => void;
+  onError?: (error: { error: { code: string; message: string } }) => void;
+  testID?: string;
+}
+
+export interface VideoPlayerRef {
+  play: () => void;
+  pause: () => void;
+  seek: (position: number) => void;
+}
+
+const NativeVideoPlayer = requireNativeComponent<VideoPlayerProps>('NativeVideoPlayer');
+
+const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>((props, ref) => {
+  const nativeRef = useRef<any>(null);
+
+  useImperativeHandle(ref, () => ({
+    play: () => {
+      sendCommand('play', []);
+    },
+    pause: () => {
+      sendCommand('pause', []);
+    },
+    seek: (position: number) => {
+      sendCommand('seek', [position]);
+    },
+  }));
+
+  const sendCommand = (command: string, args: any[]) => {
+    const handle = findNodeHandle(nativeRef.current);
+    if (handle) {
+      const commands = UIManager.getViewManagerConfig('NativeVideoPlayer')?.Commands;
+      if (commands && commands[command] !== undefined) {
+        UIManager.dispatchViewManagerCommand(handle, commands[command], args);
+      }
+    }
+  };
+
+  return (
+    <NativeVideoPlayer
+      ref={nativeRef}
+      {...props}
+    />
+  );
+});
+
+export default VideoPlayer;
+```
+
+```swift
+// File: modules/video-player/ios/VideoPlayerManager.swift
+import AVFoundation
+import React
+
+@objc(VideoPlayerManager)
+class VideoPlayerManager: RCTViewManager {
+
+  override func view() -> UIView! {
+    return VideoPlayerView()
+  }
+
+  override static func requiresMainQueueSetup() -> Bool {
+    return true
+  }
+
+  @objc
+  func play(_ reactTag: NSNumber) {
+    DispatchQueue.main.async {
+      if let view = self.bridge.uiManager.view(forReactTag: reactTag) as? VideoPlayerView {
+        view.play()
+      }
+    }
+  }
+
+  @objc
+  func pause(_ reactTag: NSNumber) {
+    DispatchQueue.main.async {
+      if let view = self.bridge.uiManager.view(forReactTag: reactTag) as? VideoPlayerView {
+        view.pause()
+      }
+    }
+  }
+
+  @objc
+  func seek(_ reactTag: NSNumber, position: NSNumber) {
+    DispatchQueue.main.async {
+      if let view = self.bridge.uiManager.view(forReactTag: reactTag) as? VideoPlayerView {
+        view.seek(to: position.doubleValue)
+      }
+    }
+  }
+}
+
+// File: modules/video-player/ios/VideoPlayerView.swift
+class VideoPlayerView: UIView {
+  private var player: AVPlayer?
+  private var playerLayer: AVPlayerLayer?
+
+  @objc var source: NSDictionary? {
+    didSet {
+      setupPlayer()
+    }
+  }
+
+  @objc var onLoad: RCTDirectEventBlock?
+  @objc var onProgress: RCTDirectEventBlock?
+  @objc var onEnd: RCTDirectEventBlock?
+  @objc var onError: RCTDirectEventBlock?
+
+  func play() {
+    player?.play()
+  }
+
+  func pause() {
+    player?.pause()
+  }
+
+  func seek(to position: Double) {
+    let time = CMTime(seconds: position, preferredTimescale: 600)
+    player?.seek(to: time)
+  }
+
+  private func setupPlayer() {
+    guard let uri = source?["uri"] as? String,
+          let url = URL(string: uri) else { return }
+
+    player = AVPlayer(url: url)
+    playerLayer = AVPlayerLayer(player: player)
+    playerLayer?.frame = bounds
+    layer.addSublayer(playerLayer!)
+
+    // Add observers
+    player?.addObserver(self, forKeyPath: "status", options: [.new], context: nil)
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(playerDidFinish),
+      name: .AVPlayerItemDidPlayToEndTime,
+      object: player?.currentItem
+    )
+  }
+
+  @objc private func playerDidFinish() {
+    onEnd?([:])
+  }
+
+  override func observeValue(forKeyPath keyPath: String?, of object: Any?,
+                             change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+    if keyPath == "status" {
+      switch player?.status {
+      case .readyToPlay:
+        if let duration = player?.currentItem?.duration.seconds,
+           let size = player?.currentItem?.presentationSize {
+          onLoad?([
+            "duration": duration,
+            "naturalSize": ["width": size.width, "height": size.height]
+          ])
+        }
+      case .failed:
+        onError?(["error": ["code": "PLAYER_ERROR", "message": player?.error?.localizedDescription ?? "Unknown"]])
+      default:
+        break
+      }
+    }
+  }
+
+  deinit {
+    player?.removeObserver(self, forKeyPath: "status")
+    NotificationCenter.default.removeObserver(self)
+  }
+}
+```
+
+```kotlin
+// File: modules/video-player/android/VideoPlayerManager.kt
+package com.yourapp.videoplayer
+
+import com.facebook.react.bridge.ReadableArray
+import com.facebook.react.common.MapBuilder
+import com.facebook.react.uimanager.SimpleViewManager
+import com.facebook.react.uimanager.ThemedReactContext
+import com.facebook.react.uimanager.annotations.ReactProp
+
+class VideoPlayerManager : SimpleViewManager<VideoPlayerView>() {
+
+  override fun getName(): String = "NativeVideoPlayer"
+
+  override fun createViewInstance(context: ThemedReactContext): VideoPlayerView {
+    return VideoPlayerView(context)
+  }
+
+  @ReactProp(name = "source")
+  fun setSource(view: VideoPlayerView, source: ReadableMap?) {
+    source?.getString("uri")?.let { uri ->
+      view.setSource(uri)
+    }
+  }
+
+  override fun getExportedCustomDirectEventTypeConstants(): Map<String, Any> {
+    return MapBuilder.builder<String, Any>()
+      .put("onLoad", MapBuilder.of("registrationName", "onLoad"))
+      .put("onProgress", MapBuilder.of("registrationName", "onProgress"))
+      .put("onEnd", MapBuilder.of("registrationName", "onEnd"))
+      .put("onError", MapBuilder.of("registrationName", "onError"))
+      .build()
+  }
+
+  override fun getCommandsMap(): Map<String, Int> {
+    return MapBuilder.of(
+      "play", COMMAND_PLAY,
+      "pause", COMMAND_PAUSE,
+      "seek", COMMAND_SEEK
+    )
+  }
+
+  override fun receiveCommand(view: VideoPlayerView, commandId: Int, args: ReadableArray?) {
+    when (commandId) {
+      COMMAND_PLAY -> view.play()
+      COMMAND_PAUSE -> view.pause()
+      COMMAND_SEEK -> args?.getDouble(0)?.let { view.seek(it) }
+    }
+  }
+
+  companion object {
+    private const val COMMAND_PLAY = 1
+    private const val COMMAND_PAUSE = 2
+    private const val COMMAND_SEEK = 3
+  }
+}
+```
+
+## 📡 Event Emitters (Native to JS) TDD
+
+```typescript
+// FIRST: Event emitter tests
+// File: modules/location/__tests__/LocationEvents.test.ts
+import { NativeEventEmitter, NativeModules } from 'react-native';
+import LocationService from '../LocationService';
+
+jest.mock('react-native', () => ({
+  NativeModules: {
+    NativeLocation: {
+      startTracking: jest.fn(),
+      stopTracking: jest.fn(),
+    },
+  },
+  NativeEventEmitter: jest.fn(() => ({
+    addListener: jest.fn((event, callback) => ({
+      remove: jest.fn(),
+    })),
+    removeAllListeners: jest.fn(),
+  })),
+}));
+
+describe('LocationService Events', () => {
+  let locationService: typeof LocationService;
+  let mockEmitter: any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockEmitter = {
+      addListener: jest.fn((event, callback) => ({
+        remove: jest.fn(),
+      })),
+      removeAllListeners: jest.fn(),
+    };
+    (NativeEventEmitter as jest.Mock).mockReturnValue(mockEmitter);
+    locationService = require('../LocationService').default;
+  });
+
+  it('subscribes to location updates', () => {
+    const callback = jest.fn();
+
+    locationService.onLocationUpdate(callback);
+
+    expect(mockEmitter.addListener).toHaveBeenCalledWith(
+      'onLocationUpdate',
+      expect.any(Function)
+    );
+  });
+
+  it('receives location update events from native', () => {
+    const callback = jest.fn();
+    let nativeCallback: Function;
+
+    mockEmitter.addListener.mockImplementation((event, cb) => {
+      nativeCallback = cb;
+      return { remove: jest.fn() };
+    });
+
+    locationService.onLocationUpdate(callback);
+
+    // Simulate native event
+    nativeCallback!({
+      latitude: 37.7749,
+      longitude: -122.4194,
+      accuracy: 10,
+    });
+
+    expect(callback).toHaveBeenCalledWith({
+      latitude: 37.7749,
+      longitude: -122.4194,
+      accuracy: 10,
+    });
+  });
+
+  it('unsubscribes from events on cleanup', () => {
+    const removeMock = jest.fn();
+    mockEmitter.addListener.mockReturnValue({ remove: removeMock });
+
+    const subscription = locationService.onLocationUpdate(jest.fn());
+    subscription.remove();
+
+    expect(removeMock).toHaveBeenCalled();
+  });
+
+  it('handles error events from native', () => {
+    const onError = jest.fn();
+    let errorCallback: Function;
+
+    mockEmitter.addListener.mockImplementation((event, cb) => {
+      if (event === 'onLocationError') {
+        errorCallback = cb;
+      }
+      return { remove: jest.fn() };
+    });
+
+    locationService.onError(onError);
+
+    errorCallback!({ code: 'LOCATION_UNAVAILABLE', message: 'GPS disabled' });
+
+    expect(onError).toHaveBeenCalledWith({
+      code: 'LOCATION_UNAVAILABLE',
+      message: 'GPS disabled',
+    });
+  });
+
+  it('removes all listeners when service stops', () => {
+    locationService.stopTracking();
+
+    expect(mockEmitter.removeAllListeners).toHaveBeenCalledWith('onLocationUpdate');
+    expect(mockEmitter.removeAllListeners).toHaveBeenCalledWith('onLocationError');
+  });
+});
+
+// THEN: Event emitter implementation
+// File: modules/location/js/LocationService.ts
+import { NativeModules, NativeEventEmitter } from 'react-native';
+
+const { NativeLocation } = NativeModules;
+
+interface Location {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  altitude?: number;
+  speed?: number;
+}
+
+interface LocationError {
+  code: string;
+  message: string;
+}
+
+class LocationService {
+  private emitter: NativeEventEmitter;
+
+  constructor() {
+    this.emitter = new NativeEventEmitter(NativeLocation);
+  }
+
+  startTracking(options?: { interval?: number; accuracy?: string }): void {
+    NativeLocation.startTracking(options ?? {});
+  }
+
+  stopTracking(): void {
+    NativeLocation.stopTracking();
+    this.emitter.removeAllListeners('onLocationUpdate');
+    this.emitter.removeAllListeners('onLocationError');
+  }
+
+  onLocationUpdate(callback: (location: Location) => void) {
+    return this.emitter.addListener('onLocationUpdate', callback);
+  }
+
+  onError(callback: (error: LocationError) => void) {
+    return this.emitter.addListener('onLocationError', callback);
+  }
+}
+
+export default new LocationService();
+```
+
+```swift
+// File: modules/location/ios/LocationModule.swift
+import Foundation
+import CoreLocation
+import React
+
+@objc(NativeLocation)
+class LocationModule: RCTEventEmitter, CLLocationManagerDelegate {
+  private var locationManager: CLLocationManager?
+  private var hasListeners = false
+
+  override func supportedEvents() -> [String]! {
+    return ["onLocationUpdate", "onLocationError"]
+  }
+
+  override func startObserving() {
+    hasListeners = true
+  }
+
+  override func stopObserving() {
+    hasListeners = false
+  }
+
+  @objc
+  func startTracking(_ options: NSDictionary) {
+    DispatchQueue.main.async {
+      self.locationManager = CLLocationManager()
+      self.locationManager?.delegate = self
+      self.locationManager?.desiredAccuracy = kCLLocationAccuracyBest
+      self.locationManager?.requestWhenInUseAuthorization()
+      self.locationManager?.startUpdatingLocation()
+    }
+  }
+
+  @objc
+  func stopTracking() {
+    DispatchQueue.main.async {
+      self.locationManager?.stopUpdatingLocation()
+      self.locationManager = nil
+    }
+  }
+
+  func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    guard hasListeners, let location = locations.last else { return }
+
+    sendEvent(withName: "onLocationUpdate", body: [
+      "latitude": location.coordinate.latitude,
+      "longitude": location.coordinate.longitude,
+      "accuracy": location.horizontalAccuracy,
+      "altitude": location.altitude,
+      "speed": location.speed
+    ])
+  }
+
+  func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    guard hasListeners else { return }
+
+    sendEvent(withName: "onLocationError", body: [
+      "code": "LOCATION_ERROR",
+      "message": error.localizedDescription
+    ])
+  }
+
+  @objc
+  override static func requiresMainQueueSetup() -> Bool {
+    return true
+  }
+}
+```
+
+## 🔌 Third-Party SDK Integration TDD
+
+```typescript
+// FIRST: SDK integration tests
+// File: modules/analytics/__tests__/AnalyticsSDK.test.ts
+import AnalyticsModule from '../AnalyticsModule';
+import { NativeModules } from 'react-native';
+
+jest.mock('react-native', () => ({
+  NativeModules: {
+    NativeAnalytics: {
+      initialize: jest.fn(),
+      trackEvent: jest.fn(),
+      setUserProperty: jest.fn(),
+      setUserId: jest.fn(),
+      flush: jest.fn(),
+    },
+  },
+  Platform: { OS: 'ios' },
+}));
+
+describe('AnalyticsModule SDK Integration', () => {
+  const { NativeAnalytics } = NativeModules;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('initializes SDK with config', async () => {
+    (NativeAnalytics.initialize as jest.Mock).mockResolvedValue(true);
+
+    await AnalyticsModule.initialize({
+      apiKey: 'test-api-key',
+      enableCrashReporting: true,
+    });
+
+    expect(NativeAnalytics.initialize).toHaveBeenCalledWith({
+      apiKey: 'test-api-key',
+      enableCrashReporting: true,
+    });
+  });
+
+  it('tracks events with properties', async () => {
+    (NativeAnalytics.trackEvent as jest.Mock).mockResolvedValue(undefined);
+
+    await AnalyticsModule.track('button_click', {
+      screen: 'home',
+      button_id: 'cta_primary',
+    });
+
+    expect(NativeAnalytics.trackEvent).toHaveBeenCalledWith('button_click', {
+      screen: 'home',
+      button_id: 'cta_primary',
+    });
+  });
+
+  it('sets user properties', async () => {
+    (NativeAnalytics.setUserProperty as jest.Mock).mockResolvedValue(undefined);
+
+    await AnalyticsModule.setUserProperty('subscription_tier', 'premium');
+
+    expect(NativeAnalytics.setUserProperty).toHaveBeenCalledWith(
+      'subscription_tier',
+      'premium'
+    );
+  });
+
+  it('identifies user with ID', async () => {
+    (NativeAnalytics.setUserId as jest.Mock).mockResolvedValue(undefined);
+
+    await AnalyticsModule.identify('user-123');
+
+    expect(NativeAnalytics.setUserId).toHaveBeenCalledWith('user-123');
+  });
+
+  it('queues events when offline', async () => {
+    // Simulate offline scenario
+    (NativeAnalytics.trackEvent as jest.Mock).mockRejectedValue(
+      new Error('Network unavailable')
+    );
+
+    // Should not throw, events queued for retry
+    await expect(
+      AnalyticsModule.track('offline_event', { data: 'test' })
+    ).resolves.not.toThrow();
+  });
+
+  it('flushes queued events', async () => {
+    (NativeAnalytics.flush as jest.Mock).mockResolvedValue({ sent: 5 });
+
+    const result = await AnalyticsModule.flush();
+
+    expect(NativeAnalytics.flush).toHaveBeenCalled();
+    expect(result.sent).toBe(5);
+  });
+
+  it('respects GDPR opt-out', async () => {
+    await AnalyticsModule.setTrackingEnabled(false);
+
+    await AnalyticsModule.track('should_not_track', {});
+
+    expect(NativeAnalytics.trackEvent).not.toHaveBeenCalled();
+  });
+});
+
+// THEN: SDK implementation
+// File: modules/analytics/js/AnalyticsModule.ts
+import { NativeModules } from 'react-native';
+
+const { NativeAnalytics } = NativeModules;
+
+interface AnalyticsConfig {
+  apiKey: string;
+  enableCrashReporting?: boolean;
+  flushInterval?: number;
+}
+
+class AnalyticsModule {
+  private initialized = false;
+  private trackingEnabled = true;
+  private eventQueue: Array<{ name: string; properties: Record<string, any> }> = [];
+
+  async initialize(config: AnalyticsConfig): Promise<void> {
+    await NativeAnalytics.initialize(config);
+    this.initialized = true;
+  }
+
+  async track(eventName: string, properties: Record<string, any> = {}): Promise<void> {
+    if (!this.trackingEnabled) {
+      return;
+    }
+
+    try {
+      await NativeAnalytics.trackEvent(eventName, properties);
+    } catch (error) {
+      // Queue for retry
+      this.eventQueue.push({ name: eventName, properties });
+    }
+  }
+
+  async setUserProperty(name: string, value: string): Promise<void> {
+    await NativeAnalytics.setUserProperty(name, value);
+  }
+
+  async identify(userId: string): Promise<void> {
+    await NativeAnalytics.setUserId(userId);
+  }
+
+  async flush(): Promise<{ sent: number }> {
+    return await NativeAnalytics.flush();
+  }
+
+  setTrackingEnabled(enabled: boolean): void {
+    this.trackingEnabled = enabled;
+  }
+}
+
+export default new AnalyticsModule();
+```
+
+## ⏰ Background Tasks TDD
+
+```typescript
+// FIRST: Background task tests
+// File: modules/background/__tests__/BackgroundTask.test.ts
+import BackgroundTask from '../BackgroundTask';
+import { NativeModules, AppState } from 'react-native';
+
+jest.mock('react-native', () => ({
+  NativeModules: {
+    NativeBackgroundTask: {
+      startTask: jest.fn(),
+      endTask: jest.fn(),
+      scheduleTask: jest.fn(),
+      cancelTask: jest.fn(),
+      cancelAllTasks: jest.fn(),
+    },
+  },
+  AppState: {
+    currentState: 'active',
+    addEventListener: jest.fn(),
+  },
+}));
+
+describe('BackgroundTask', () => {
+  const { NativeBackgroundTask } = NativeModules;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('starts background task and returns task ID', async () => {
+    (NativeBackgroundTask.startTask as jest.Mock).mockResolvedValue('task-123');
+
+    const taskId = await BackgroundTask.start('data_sync');
+
+    expect(taskId).toBe('task-123');
+    expect(NativeBackgroundTask.startTask).toHaveBeenCalledWith('data_sync');
+  });
+
+  it('ends background task by ID', async () => {
+    (NativeBackgroundTask.endTask as jest.Mock).mockResolvedValue(undefined);
+
+    await BackgroundTask.end('task-123');
+
+    expect(NativeBackgroundTask.endTask).toHaveBeenCalledWith('task-123');
+  });
+
+  it('schedules periodic background task', async () => {
+    (NativeBackgroundTask.scheduleTask as jest.Mock).mockResolvedValue('scheduled-456');
+
+    const taskId = await BackgroundTask.schedule({
+      taskName: 'sync_data',
+      interval: 15 * 60, // 15 minutes
+      requiresNetwork: true,
+      requiresCharging: false,
+    });
+
+    expect(taskId).toBe('scheduled-456');
+    expect(NativeBackgroundTask.scheduleTask).toHaveBeenCalledWith({
+      taskName: 'sync_data',
+      interval: 900,
+      requiresNetwork: true,
+      requiresCharging: false,
+    });
+  });
+
+  it('cancels scheduled task', async () => {
+    (NativeBackgroundTask.cancelTask as jest.Mock).mockResolvedValue(true);
+
+    const cancelled = await BackgroundTask.cancel('scheduled-456');
+
+    expect(cancelled).toBe(true);
+    expect(NativeBackgroundTask.cancelTask).toHaveBeenCalledWith('scheduled-456');
+  });
+
+  it('executes task with timeout protection', async () => {
+    const task = jest.fn().mockImplementation(
+      () => new Promise(resolve => setTimeout(resolve, 100))
+    );
+
+    (NativeBackgroundTask.startTask as jest.Mock).mockResolvedValue('task-789');
+    (NativeBackgroundTask.endTask as jest.Mock).mockResolvedValue(undefined);
+
+    await BackgroundTask.run('quick_task', task, { timeout: 5000 });
+
+    expect(task).toHaveBeenCalled();
+    expect(NativeBackgroundTask.endTask).toHaveBeenCalledWith('task-789');
+  });
+
+  it('handles task timeout gracefully', async () => {
+    const slowTask = jest.fn().mockImplementation(
+      () => new Promise(resolve => setTimeout(resolve, 10000))
+    );
+
+    (NativeBackgroundTask.startTask as jest.Mock).mockResolvedValue('task-slow');
+
+    await expect(
+      BackgroundTask.run('slow_task', slowTask, { timeout: 100 })
+    ).rejects.toThrow('Task timeout');
+
+    expect(NativeBackgroundTask.endTask).toHaveBeenCalledWith('task-slow');
+  });
+});
+
+// THEN: Background task implementation
+// File: modules/background/js/BackgroundTask.ts
+import { NativeModules, AppState } from 'react-native';
+
+const { NativeBackgroundTask } = NativeModules;
+
+interface ScheduleOptions {
+  taskName: string;
+  interval: number; // seconds
+  requiresNetwork?: boolean;
+  requiresCharging?: boolean;
+}
+
+interface RunOptions {
+  timeout?: number;
+}
+
+class BackgroundTask {
+  async start(taskName: string): Promise<string> {
+    return await NativeBackgroundTask.startTask(taskName);
+  }
+
+  async end(taskId: string): Promise<void> {
+    await NativeBackgroundTask.endTask(taskId);
+  }
+
+  async schedule(options: ScheduleOptions): Promise<string> {
+    return await NativeBackgroundTask.scheduleTask(options);
+  }
+
+  async cancel(taskId: string): Promise<boolean> {
+    return await NativeBackgroundTask.cancelTask(taskId);
+  }
+
+  async cancelAll(): Promise<void> {
+    await NativeBackgroundTask.cancelAllTasks();
+  }
+
+  async run(
+    taskName: string,
+    task: () => Promise<void>,
+    options: RunOptions = {}
+  ): Promise<void> {
+    const { timeout = 30000 } = options;
+    const taskId = await this.start(taskName);
+
+    try {
+      await Promise.race([
+        task(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Task timeout')), timeout)
+        ),
+      ]);
+    } finally {
+      await this.end(taskId);
+    }
+  }
+}
+
+export default new BackgroundTask();
+```
+
+```swift
+// File: modules/background/ios/BackgroundTaskModule.swift
+import Foundation
+import BackgroundTasks
+import React
+
+@objc(NativeBackgroundTask)
+class BackgroundTaskModule: NSObject {
+  private var activeTasks: [String: UIBackgroundTaskIdentifier] = [:]
+
+  @objc
+  func startTask(_ taskName: String,
+                 resolve: @escaping RCTPromiseResolveBlock,
+                 reject: @escaping RCTPromiseRejectBlock) {
+    let taskId = UUID().uuidString
+
+    let identifier = UIApplication.shared.beginBackgroundTask(withName: taskName) { [weak self] in
+      self?.endBackgroundTask(taskId)
+    }
+
+    if identifier == .invalid {
+      reject("TASK_FAILED", "Could not start background task", nil)
+      return
+    }
+
+    activeTasks[taskId] = identifier
+    resolve(taskId)
+  }
+
+  @objc
+  func endTask(_ taskId: String,
+               resolve: @escaping RCTPromiseResolveBlock,
+               reject: @escaping RCTPromiseRejectBlock) {
+    endBackgroundTask(taskId)
+    resolve(nil)
+  }
+
+  private func endBackgroundTask(_ taskId: String) {
+    guard let identifier = activeTasks[taskId] else { return }
+    UIApplication.shared.endBackgroundTask(identifier)
+    activeTasks.removeValue(forKey: taskId)
+  }
+
+  @objc
+  func scheduleTask(_ options: NSDictionary,
+                    resolve: @escaping RCTPromiseResolveBlock,
+                    reject: @escaping RCTPromiseRejectBlock) {
+    guard let taskName = options["taskName"] as? String,
+          let interval = options["interval"] as? Double else {
+      reject("INVALID_OPTIONS", "Missing required options", nil)
+      return
+    }
+
+    let taskId = "com.yourapp.\(taskName)"
+
+    let request = BGAppRefreshTaskRequest(identifier: taskId)
+    request.earliestBeginDate = Date(timeIntervalSinceNow: interval)
+
+    do {
+      try BGTaskScheduler.shared.submit(request)
+      resolve(taskId)
+    } catch {
+      reject("SCHEDULE_FAILED", error.localizedDescription, error)
+    }
+  }
+
+  @objc
+  static func requiresMainQueueSetup() -> Bool {
+    return false
+  }
+}
+```
+
+## 🔗 Specialist Agent References
+
+**Defer to specialist agents for deep domain expertise:**
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Mobile Architecture** | `react-native-tdd-architect` | Overall app architecture, navigation, state management |
+| **Security** | `mobile-security-architect` | Secure storage integration, biometric native modules |
+| **Performance** | `mobile-performance-optimizer` | Native module profiling, bridge optimization |
+| **Real-time** | `mobile-realtime-architect` | Native WebSocket implementations, push notifications |
+| **Data** | `mobile-data-architect` | Native database bridges, offline sync modules |
+| **Deployment** | `expo-deployment-agent` | Native module publishing, bare workflow setup |
+
+## 📊 Success Criteria
+
+Every native module must have:
+
+- ✅ Native module tests written BEFORE implementation
+- ✅ iOS and Android implementations tested separately
+- ✅ Bridge communication validated (JS → Native → JS)
+- ✅ Memory leaks prevented and tested
+- ✅ Permissions handled correctly
+- ✅ Error cases tested
+- ✅ Event emitters tested for subscriptions
+- ✅ Native UI commands tested
+- ✅ Background task completion verified
+
+## 🔧 Commands
+
+```bash
+# Test JavaScript bridge
+npm test -- modules/
+
+# Test iOS native code
+xcodebuild test -workspace ios/YourApp.xcworkspace -scheme YourApp \
+  -destination 'platform=iOS Simulator,name=iPhone 15'
+
+# Test Android native code
+cd android && ./gradlew test
+
+# Build and link native modules
+cd ios && pod install
+cd android && ./gradlew assembleDebug
+
+# Run integration tests on device
+npm run test:e2e -- --testNamePattern="native"
+```
+
 You are the guardian of native bridge reliability. No native module exists until bridge communication is tested and proven reliable.

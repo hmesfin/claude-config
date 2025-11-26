@@ -860,4 +860,1120 @@ npm test -- --testNamePattern="auth"
 npm test -- src/security --coverage
 ```
 
+## 🔐 OAuth2 Mobile Flows with PKCE (TDD Approach)
+
+```typescript
+// FIRST: OAuth2 PKCE tests
+// File: src/security/auth/__tests__/oauth.test.ts
+import { OAuth2Client, PKCEGenerator } from '../oauth';
+import { Linking } from 'react-native';
+
+jest.mock('react-native', () => ({
+  Linking: {
+    openURL: jest.fn(),
+    addEventListener: jest.fn(),
+    getInitialURL: jest.fn(),
+  },
+}));
+
+describe('PKCEGenerator', () => {
+  it('generates cryptographically secure code verifier', () => {
+    const pkce = new PKCEGenerator();
+    const verifier = pkce.generateCodeVerifier();
+
+    // Must be 43-128 characters
+    expect(verifier.length).toBeGreaterThanOrEqual(43);
+    expect(verifier.length).toBeLessThanOrEqual(128);
+    // Must use URL-safe characters only
+    expect(verifier).toMatch(/^[A-Za-z0-9\-._~]+$/);
+  });
+
+  it('generates correct S256 code challenge', () => {
+    const pkce = new PKCEGenerator();
+    const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+
+    const challenge = pkce.generateCodeChallenge(verifier, 'S256');
+
+    // SHA256 hash of verifier, base64url encoded
+    expect(challenge).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+  });
+
+  it('each code verifier is unique', () => {
+    const pkce = new PKCEGenerator();
+    const verifiers = new Set<string>();
+
+    for (let i = 0; i < 100; i++) {
+      verifiers.add(pkce.generateCodeVerifier());
+    }
+
+    expect(verifiers.size).toBe(100); // All unique
+  });
+});
+
+describe('OAuth2Client', () => {
+  it('initiates authorization with PKCE', async () => {
+    const client = new OAuth2Client({
+      clientId: 'mobile-app',
+      redirectUri: 'myapp://oauth/callback',
+      authorizationEndpoint: 'https://auth.example.com/authorize',
+      tokenEndpoint: 'https://auth.example.com/token',
+    });
+
+    await client.authorize(['openid', 'profile']);
+
+    expect(Linking.openURL).toHaveBeenCalledWith(
+      expect.stringContaining('code_challenge=')
+    );
+    expect(Linking.openURL).toHaveBeenCalledWith(
+      expect.stringContaining('code_challenge_method=S256')
+    );
+  });
+
+  it('exchanges code for tokens with PKCE verifier', async () => {
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        access_token: 'access-token',
+        refresh_token: 'refresh-token',
+        expires_in: 3600,
+      }),
+    });
+    global.fetch = mockFetch;
+
+    const client = new OAuth2Client({
+      clientId: 'mobile-app',
+      redirectUri: 'myapp://oauth/callback',
+      tokenEndpoint: 'https://auth.example.com/token',
+    });
+
+    // Simulate receiving callback with code
+    const tokens = await client.handleCallback('myapp://oauth/callback?code=auth-code');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://auth.example.com/token',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('code_verifier='),
+      })
+    );
+    expect(tokens.accessToken).toBe('access-token');
+  });
+
+  it('rejects callbacks from untrusted origins', async () => {
+    const client = new OAuth2Client({
+      clientId: 'mobile-app',
+      redirectUri: 'myapp://oauth/callback',
+    });
+
+    await expect(
+      client.handleCallback('malicious://oauth/callback?code=stolen')
+    ).rejects.toThrow('Invalid redirect URI');
+  });
+
+  it('validates state parameter to prevent CSRF', async () => {
+    const client = new OAuth2Client({
+      clientId: 'mobile-app',
+      redirectUri: 'myapp://oauth/callback',
+    });
+
+    // Start authorization (generates state)
+    await client.authorize(['openid']);
+
+    // Try callback with wrong state
+    await expect(
+      client.handleCallback('myapp://oauth/callback?code=auth-code&state=wrong-state')
+    ).rejects.toThrow('Invalid state parameter');
+  });
+
+  it('securely stores PKCE verifier during flow', async () => {
+    const mockSecureStore = {
+      setItemAsync: jest.fn(),
+      getItemAsync: jest.fn(),
+      deleteItemAsync: jest.fn(),
+    };
+
+    const client = new OAuth2Client({
+      clientId: 'mobile-app',
+      redirectUri: 'myapp://oauth/callback',
+      secureStorage: mockSecureStore,
+    });
+
+    await client.authorize(['openid']);
+
+    // Verifier should be stored securely
+    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
+      'oauth_pkce_verifier',
+      expect.any(String)
+    );
+  });
+});
+
+// THEN: OAuth2 implementation
+// File: src/security/auth/oauth.ts
+import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
+import { Linking } from 'react-native';
+import { encode as base64Encode } from 'base-64';
+
+export class PKCEGenerator {
+  generateCodeVerifier(): string {
+    // Generate 32 bytes of random data
+    const randomBytes = Crypto.getRandomBytes(32);
+    return this.base64URLEncode(randomBytes);
+  }
+
+  async generateCodeChallenge(verifier: string, method: 'S256' | 'plain' = 'S256'): Promise<string> {
+    if (method === 'plain') {
+      return verifier;
+    }
+
+    // SHA256 hash
+    const digest = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      verifier,
+      { encoding: Crypto.CryptoEncoding.BASE64 }
+    );
+
+    // Convert to base64url
+    return digest
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+
+  private base64URLEncode(bytes: Uint8Array): string {
+    const base64 = base64Encode(String.fromCharCode(...bytes));
+    return base64
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+}
+
+interface OAuth2Config {
+  clientId: string;
+  redirectUri: string;
+  authorizationEndpoint?: string;
+  tokenEndpoint?: string;
+  secureStorage?: typeof SecureStore;
+}
+
+interface TokenResponse {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn: number;
+  tokenType: string;
+}
+
+export class OAuth2Client {
+  private config: OAuth2Config;
+  private pkce: PKCEGenerator;
+  private state: string | null = null;
+  private codeVerifier: string | null = null;
+
+  constructor(config: OAuth2Config) {
+    this.config = config;
+    this.pkce = new PKCEGenerator();
+  }
+
+  async authorize(scopes: string[]): Promise<void> {
+    // Generate PKCE
+    this.codeVerifier = this.pkce.generateCodeVerifier();
+    const codeChallenge = await this.pkce.generateCodeChallenge(this.codeVerifier);
+
+    // Generate state for CSRF protection
+    this.state = this.generateState();
+
+    // Store verifier securely
+    const storage = this.config.secureStorage ?? SecureStore;
+    await storage.setItemAsync('oauth_pkce_verifier', this.codeVerifier);
+    await storage.setItemAsync('oauth_state', this.state);
+
+    // Build authorization URL
+    const params = new URLSearchParams({
+      client_id: this.config.clientId,
+      redirect_uri: this.config.redirectUri,
+      response_type: 'code',
+      scope: scopes.join(' '),
+      state: this.state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+    });
+
+    const authUrl = `${this.config.authorizationEndpoint}?${params.toString()}`;
+    await Linking.openURL(authUrl);
+  }
+
+  async handleCallback(callbackUrl: string): Promise<TokenResponse> {
+    const url = new URL(callbackUrl);
+
+    // Validate redirect URI
+    if (!callbackUrl.startsWith(this.config.redirectUri)) {
+      throw new Error('Invalid redirect URI');
+    }
+
+    // Validate state
+    const storage = this.config.secureStorage ?? SecureStore;
+    const storedState = await storage.getItemAsync('oauth_state');
+    const receivedState = url.searchParams.get('state');
+
+    if (receivedState !== storedState) {
+      throw new Error('Invalid state parameter');
+    }
+
+    // Get authorization code
+    const code = url.searchParams.get('code');
+    if (!code) {
+      throw new Error('No authorization code received');
+    }
+
+    // Get stored verifier
+    const verifier = await storage.getItemAsync('oauth_pkce_verifier');
+
+    // Exchange code for tokens
+    const response = await fetch(this.config.tokenEndpoint!, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: this.config.clientId,
+        redirect_uri: this.config.redirectUri,
+        code,
+        code_verifier: verifier!,
+      }).toString(),
+    });
+
+    // Clean up stored values
+    await storage.deleteItemAsync('oauth_pkce_verifier');
+    await storage.deleteItemAsync('oauth_state');
+
+    if (!response.ok) {
+      throw new Error('Token exchange failed');
+    }
+
+    const data = await response.json();
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresIn: data.expires_in,
+      tokenType: data.token_type,
+    };
+  }
+
+  private generateState(): string {
+    const bytes = Crypto.getRandomBytes(16);
+    return Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+}
+```
+
+## 🛡️ Jailbreak/Root Detection (TDD Approach)
+
+```typescript
+// FIRST: Jailbreak detection tests
+// File: src/security/detection/__tests__/jailbreakDetection.test.ts
+import { JailbreakDetector } from '../jailbreakDetection';
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+
+jest.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
+  NativeModules: {},
+}));
+
+jest.mock('expo-file-system');
+
+describe('JailbreakDetector', () => {
+  describe('iOS Detection', () => {
+    beforeEach(() => {
+      (Platform as any).OS = 'ios';
+    });
+
+    it('detects Cydia app installation', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: true });
+
+      const detector = new JailbreakDetector();
+      const result = await detector.isCompromised();
+
+      expect(result.isJailbroken).toBe(true);
+      expect(result.indicators).toContain('cydia_installed');
+    });
+
+    it('detects suspicious file paths', async () => {
+      const detector = new JailbreakDetector();
+
+      // Mock file exists for suspicious path
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation(async (path: string) => {
+        if (path === '/private/var/lib/apt') {
+          return { exists: true };
+        }
+        return { exists: false };
+      });
+
+      const result = await detector.isCompromised();
+
+      expect(result.isJailbroken).toBe(true);
+      expect(result.indicators).toContain('suspicious_paths');
+    });
+
+    it('detects ability to write outside sandbox', async () => {
+      const detector = new JailbreakDetector();
+
+      // Mock successful write outside sandbox
+      (FileSystem.writeAsStringAsync as jest.Mock).mockResolvedValue(undefined);
+      (FileSystem.deleteAsync as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await detector.checkSandboxIntegrity();
+
+      expect(result).toBe(false); // Sandbox compromised
+    });
+
+    it('passes clean device check', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({ exists: false });
+      (FileSystem.writeAsStringAsync as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+
+      const detector = new JailbreakDetector();
+      const result = await detector.isCompromised();
+
+      expect(result.isJailbroken).toBe(false);
+      expect(result.indicators).toHaveLength(0);
+    });
+  });
+
+  describe('Android Detection', () => {
+    beforeEach(() => {
+      (Platform as any).OS = 'android';
+    });
+
+    it('detects su binary', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation(async (path: string) => {
+        if (path.includes('/su')) {
+          return { exists: true };
+        }
+        return { exists: false };
+      });
+
+      const detector = new JailbreakDetector();
+      const result = await detector.isCompromised();
+
+      expect(result.isJailbroken).toBe(true);
+      expect(result.indicators).toContain('su_binary');
+    });
+
+    it('detects Magisk installation', async () => {
+      (FileSystem.getInfoAsync as jest.Mock).mockImplementation(async (path: string) => {
+        if (path.includes('magisk')) {
+          return { exists: true };
+        }
+        return { exists: false };
+      });
+
+      const detector = new JailbreakDetector();
+      const result = await detector.isCompromised();
+
+      expect(result.isJailbroken).toBe(true);
+      expect(result.indicators).toContain('magisk_detected');
+    });
+  });
+
+  describe('Behavioral Response', () => {
+    it('blocks sensitive operations on compromised devices', async () => {
+      const detector = new JailbreakDetector();
+      jest.spyOn(detector, 'isCompromised').mockResolvedValue({
+        isJailbroken: true,
+        indicators: ['cydia_installed'],
+      });
+
+      const securityPolicy = {
+        allowBiometric: false,
+        allowPayments: false,
+        forceLogout: true,
+      };
+
+      const policy = await detector.getSecurityPolicy();
+      expect(policy).toEqual(securityPolicy);
+    });
+  });
+});
+
+// THEN: Jailbreak detection implementation
+// File: src/security/detection/jailbreakDetection.ts
+import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+
+interface CompromiseResult {
+  isJailbroken: boolean;
+  indicators: string[];
+}
+
+interface SecurityPolicy {
+  allowBiometric: boolean;
+  allowPayments: boolean;
+  forceLogout: boolean;
+}
+
+const IOS_SUSPICIOUS_PATHS = [
+  '/Applications/Cydia.app',
+  '/Library/MobileSubstrate/MobileSubstrate.dylib',
+  '/bin/bash',
+  '/usr/sbin/sshd',
+  '/etc/apt',
+  '/private/var/lib/apt',
+  '/usr/bin/ssh',
+  '/private/var/lib/cydia',
+  '/private/var/stash',
+];
+
+const ANDROID_SUSPICIOUS_PATHS = [
+  '/system/app/Superuser.apk',
+  '/system/xbin/su',
+  '/system/bin/su',
+  '/sbin/su',
+  '/data/local/xbin/su',
+  '/data/local/bin/su',
+  '/system/sd/xbin/su',
+  '/system/bin/failsafe/su',
+  '/data/local/su',
+  '/data/adb/magisk',
+];
+
+export class JailbreakDetector {
+  async isCompromised(): Promise<CompromiseResult> {
+    const indicators: string[] = [];
+
+    if (Platform.OS === 'ios') {
+      // Check Cydia
+      if (await this.checkPath('/Applications/Cydia.app')) {
+        indicators.push('cydia_installed');
+      }
+
+      // Check suspicious paths
+      for (const path of IOS_SUSPICIOUS_PATHS) {
+        if (await this.checkPath(path)) {
+          indicators.push('suspicious_paths');
+          break;
+        }
+      }
+
+      // Check sandbox integrity
+      if (!(await this.checkSandboxIntegrity())) {
+        indicators.push('sandbox_compromised');
+      }
+    } else if (Platform.OS === 'android') {
+      // Check su binary
+      for (const path of ANDROID_SUSPICIOUS_PATHS) {
+        if (path.includes('/su') && (await this.checkPath(path))) {
+          indicators.push('su_binary');
+          break;
+        }
+      }
+
+      // Check Magisk
+      if (await this.checkPath('/data/adb/magisk')) {
+        indicators.push('magisk_detected');
+      }
+    }
+
+    return {
+      isJailbroken: indicators.length > 0,
+      indicators: [...new Set(indicators)],
+    };
+  }
+
+  async checkSandboxIntegrity(): Promise<boolean> {
+    const testPath = '/private/jailbreak_test';
+
+    try {
+      await FileSystem.writeAsStringAsync(testPath, 'test');
+      await FileSystem.deleteAsync(testPath);
+      return false; // Should NOT be able to write here
+    } catch {
+      return true; // Correctly denied
+    }
+  }
+
+  async getSecurityPolicy(): Promise<SecurityPolicy> {
+    const result = await this.isCompromised();
+
+    if (result.isJailbroken) {
+      return {
+        allowBiometric: false,
+        allowPayments: false,
+        forceLogout: true,
+      };
+    }
+
+    return {
+      allowBiometric: true,
+      allowPayments: true,
+      forceLogout: false,
+    };
+  }
+
+  private async checkPath(path: string): Promise<boolean> {
+    try {
+      const info = await FileSystem.getInfoAsync(path);
+      return info.exists;
+    } catch {
+      return false;
+    }
+  }
+}
+
+export const jailbreakDetector = new JailbreakDetector();
+```
+
+## 🔗 Deep Link Security (TDD Approach)
+
+```typescript
+// FIRST: Deep link validation tests
+// File: src/security/validation/__tests__/deepLinkValidation.test.ts
+import { DeepLinkValidator } from '../deepLinkValidation';
+
+describe('DeepLinkValidator', () => {
+  const validator = new DeepLinkValidator({
+    allowedSchemes: ['myapp', 'https'],
+    allowedHosts: ['app.example.com', 'www.example.com'],
+    allowedPaths: ['/profile/*', '/settings', '/auth/callback'],
+  });
+
+  it('accepts valid deep links', () => {
+    expect(validator.isValid('myapp://profile/123')).toBe(true);
+    expect(validator.isValid('https://app.example.com/settings')).toBe(true);
+  });
+
+  it('rejects invalid schemes', () => {
+    expect(validator.isValid('javascript:alert(1)')).toBe(false);
+    expect(validator.isValid('file:///etc/passwd')).toBe(false);
+    expect(validator.isValid('data:text/html,<script>alert(1)</script>')).toBe(false);
+  });
+
+  it('rejects unauthorized hosts', () => {
+    expect(validator.isValid('https://evil.com/phishing')).toBe(false);
+    expect(validator.isValid('myapp://malicious.com/steal')).toBe(false);
+  });
+
+  it('sanitizes URL parameters', () => {
+    const result = validator.sanitize('myapp://profile/123?redirect=javascript:alert(1)');
+
+    expect(result.params.redirect).toBeUndefined(); // Removed dangerous param
+  });
+
+  it('prevents path traversal attacks', () => {
+    expect(validator.isValid('myapp://profile/../../../etc/passwd')).toBe(false);
+    expect(validator.isValid('myapp://profile/..%2F..%2Fetc/passwd')).toBe(false);
+  });
+
+  it('extracts and validates route parameters', () => {
+    const result = validator.parse('myapp://profile/123?tab=settings');
+
+    expect(result).toEqual({
+      scheme: 'myapp',
+      host: null,
+      path: '/profile/123',
+      params: { tab: 'settings' },
+      isValid: true,
+    });
+  });
+
+  it('handles malformed URLs gracefully', () => {
+    expect(validator.isValid('not a valid url')).toBe(false);
+    expect(validator.isValid('')).toBe(false);
+    expect(validator.isValid(null as any)).toBe(false);
+  });
+
+  it('validates OAuth callback URLs strictly', () => {
+    const oauthValidator = new DeepLinkValidator({
+      allowedSchemes: ['myapp'],
+      allowedPaths: ['/auth/callback'],
+      requiredParams: ['code', 'state'],
+    });
+
+    // Missing required params
+    expect(oauthValidator.isValid('myapp://auth/callback?code=123')).toBe(false);
+
+    // All required params present
+    expect(oauthValidator.isValid('myapp://auth/callback?code=123&state=abc')).toBe(true);
+  });
+});
+
+// THEN: Deep link validation implementation
+// File: src/security/validation/deepLinkValidation.ts
+interface DeepLinkConfig {
+  allowedSchemes: string[];
+  allowedHosts?: string[];
+  allowedPaths?: string[];
+  requiredParams?: string[];
+}
+
+interface ParsedDeepLink {
+  scheme: string | null;
+  host: string | null;
+  path: string;
+  params: Record<string, string>;
+  isValid: boolean;
+}
+
+const DANGEROUS_SCHEMES = ['javascript', 'vbscript', 'data', 'file'];
+const PATH_TRAVERSAL_PATTERNS = [/\.\.\//, /\.\.%2F/i, /%2e%2e/i];
+
+export class DeepLinkValidator {
+  private config: DeepLinkConfig;
+
+  constructor(config: DeepLinkConfig) {
+    this.config = config;
+  }
+
+  isValid(url: string | null | undefined): boolean {
+    if (!url || typeof url !== 'string') {
+      return false;
+    }
+
+    try {
+      const parsed = this.parse(url);
+      return parsed.isValid;
+    } catch {
+      return false;
+    }
+  }
+
+  parse(url: string): ParsedDeepLink {
+    let parsed: URL;
+
+    try {
+      parsed = new URL(url);
+    } catch {
+      return this.invalidResult();
+    }
+
+    const scheme = parsed.protocol.replace(':', '');
+    const host = parsed.host || null;
+    const path = parsed.pathname;
+    const params = Object.fromEntries(parsed.searchParams);
+
+    // Check for dangerous schemes
+    if (DANGEROUS_SCHEMES.includes(scheme.toLowerCase())) {
+      return this.invalidResult();
+    }
+
+    // Validate scheme
+    if (!this.config.allowedSchemes.includes(scheme)) {
+      return this.invalidResult();
+    }
+
+    // Validate host (if configured)
+    if (this.config.allowedHosts && host) {
+      if (!this.config.allowedHosts.includes(host)) {
+        return this.invalidResult();
+      }
+    }
+
+    // Check for path traversal
+    if (this.hasPathTraversal(path)) {
+      return this.invalidResult();
+    }
+
+    // Validate path patterns
+    if (this.config.allowedPaths && !this.matchesPath(path)) {
+      return this.invalidResult();
+    }
+
+    // Check required params
+    if (this.config.requiredParams) {
+      for (const required of this.config.requiredParams) {
+        if (!params[required]) {
+          return this.invalidResult();
+        }
+      }
+    }
+
+    return {
+      scheme,
+      host,
+      path,
+      params,
+      isValid: true,
+    };
+  }
+
+  sanitize(url: string): ParsedDeepLink {
+    const parsed = this.parse(url);
+
+    if (!parsed.isValid) {
+      return parsed;
+    }
+
+    // Remove dangerous params
+    const sanitizedParams: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parsed.params)) {
+      if (!this.isDangerousValue(value)) {
+        sanitizedParams[key] = value;
+      }
+    }
+
+    return {
+      ...parsed,
+      params: sanitizedParams,
+    };
+  }
+
+  private hasPathTraversal(path: string): boolean {
+    return PATH_TRAVERSAL_PATTERNS.some(pattern => pattern.test(path));
+  }
+
+  private matchesPath(path: string): boolean {
+    for (const pattern of this.config.allowedPaths!) {
+      if (pattern.endsWith('/*')) {
+        const prefix = pattern.slice(0, -1);
+        if (path.startsWith(prefix)) return true;
+      } else if (path === pattern) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private isDangerousValue(value: string): boolean {
+    const dangerous = ['javascript:', 'data:', 'vbscript:'];
+    return dangerous.some(d => value.toLowerCase().includes(d));
+  }
+
+  private invalidResult(): ParsedDeepLink {
+    return {
+      scheme: null,
+      host: null,
+      path: '',
+      params: {},
+      isValid: false,
+    };
+  }
+}
+```
+
+## 🌐 Secure API Interceptors (TDD Approach)
+
+```typescript
+// FIRST: API interceptor tests
+// File: src/security/network/__tests__/interceptors.test.ts
+import { AuthInterceptor, SecurityInterceptor } from '../interceptors';
+import { jwtManager } from '../../auth/jwt';
+
+jest.mock('../../auth/jwt');
+
+describe('AuthInterceptor', () => {
+  it('adds authorization header with valid token', async () => {
+    (jwtManager.getAccessToken as jest.Mock).mockResolvedValue('valid-token');
+    (jwtManager.isTokenExpired as jest.Mock).mockReturnValue(false);
+
+    const interceptor = new AuthInterceptor(jwtManager);
+    const config = { headers: {} };
+
+    const result = await interceptor.onRequest(config);
+
+    expect(result.headers['Authorization']).toBe('Bearer valid-token');
+  });
+
+  it('refreshes expired token before request', async () => {
+    (jwtManager.getAccessToken as jest.Mock).mockResolvedValue('expired-token');
+    (jwtManager.isTokenExpired as jest.Mock).mockReturnValue(true);
+    (jwtManager.refreshIfNeeded as jest.Mock).mockResolvedValue(undefined);
+
+    const interceptor = new AuthInterceptor(jwtManager);
+    const config = { headers: {} };
+
+    await interceptor.onRequest(config);
+
+    expect(jwtManager.refreshIfNeeded).toHaveBeenCalled();
+  });
+
+  it('handles 401 response by refreshing and retrying', async () => {
+    const interceptor = new AuthInterceptor(jwtManager);
+    const response = {
+      status: 401,
+      config: { url: '/api/data', _retry: false },
+    };
+
+    (jwtManager.refreshIfNeeded as jest.Mock).mockResolvedValue(undefined);
+
+    const shouldRetry = await interceptor.onResponseError(response);
+
+    expect(shouldRetry).toBe(true);
+    expect(response.config._retry).toBe(true);
+  });
+
+  it('logs out user after multiple refresh failures', async () => {
+    const onLogout = jest.fn();
+    const interceptor = new AuthInterceptor(jwtManager, { onLogout });
+
+    (jwtManager.refreshIfNeeded as jest.Mock).mockRejectedValue(new Error('Refresh failed'));
+
+    const response = {
+      status: 401,
+      config: { url: '/api/data', _retry: true }, // Already retried
+    };
+
+    await interceptor.onResponseError(response);
+
+    expect(onLogout).toHaveBeenCalled();
+  });
+});
+
+describe('SecurityInterceptor', () => {
+  it('adds security headers to all requests', async () => {
+    const interceptor = new SecurityInterceptor();
+    const config = { headers: {} };
+
+    const result = await interceptor.onRequest(config);
+
+    expect(result.headers['X-Request-ID']).toBeDefined();
+    expect(result.headers['X-Client-Version']).toBeDefined();
+  });
+
+  it('signs request with HMAC for sensitive endpoints', async () => {
+    const interceptor = new SecurityInterceptor({
+      signedEndpoints: ['/api/payments/*'],
+      signingKey: 'secret-key',
+    });
+
+    const config = {
+      url: '/api/payments/create',
+      method: 'POST',
+      data: { amount: 100 },
+      headers: {},
+    };
+
+    const result = await interceptor.onRequest(config);
+
+    expect(result.headers['X-Signature']).toBeDefined();
+    expect(result.headers['X-Timestamp']).toBeDefined();
+  });
+
+  it('blocks requests to non-HTTPS endpoints in production', async () => {
+    const interceptor = new SecurityInterceptor({
+      enforceHttps: true,
+    });
+
+    const config = {
+      url: 'http://api.example.com/data',
+      headers: {},
+    };
+
+    await expect(interceptor.onRequest(config)).rejects.toThrow(
+      'HTTPS required for all requests'
+    );
+  });
+
+  it('validates response integrity when signature present', async () => {
+    const interceptor = new SecurityInterceptor({
+      validateResponseSignature: true,
+      signingKey: 'secret-key',
+    });
+
+    const response = {
+      data: { result: 'success' },
+      headers: {
+        'x-signature': 'invalid-signature',
+      },
+    };
+
+    await expect(interceptor.onResponse(response)).rejects.toThrow(
+      'Response signature validation failed'
+    );
+  });
+});
+
+// THEN: Interceptor implementation
+// File: src/security/network/interceptors.ts
+import { v4 as uuidv4 } from 'uuid';
+import CryptoJS from 'crypto-js';
+import { JWTManager } from '../auth/jwt';
+import Constants from 'expo-constants';
+
+interface AuthInterceptorOptions {
+  onLogout?: () => void;
+}
+
+export class AuthInterceptor {
+  private jwtManager: JWTManager;
+  private options: AuthInterceptorOptions;
+
+  constructor(jwtManager: JWTManager, options: AuthInterceptorOptions = {}) {
+    this.jwtManager = jwtManager;
+    this.options = options;
+  }
+
+  async onRequest(config: any): Promise<any> {
+    const token = await this.jwtManager.getAccessToken();
+
+    if (token) {
+      // Check if token needs refresh
+      if (this.jwtManager.isTokenExpired(token)) {
+        await this.jwtManager.refreshIfNeeded(token);
+      }
+
+      const currentToken = await this.jwtManager.getAccessToken();
+      config.headers['Authorization'] = `Bearer ${currentToken}`;
+    }
+
+    return config;
+  }
+
+  async onResponseError(response: any): Promise<boolean> {
+    if (response.status === 401 && !response.config._retry) {
+      response.config._retry = true;
+
+      try {
+        const token = await this.jwtManager.getAccessToken();
+        if (token) {
+          await this.jwtManager.refreshIfNeeded(token);
+          return true; // Signal to retry
+        }
+      } catch (error) {
+        // Refresh failed, logout
+        this.options.onLogout?.();
+      }
+    }
+
+    if (response.status === 401 && response.config._retry) {
+      // Already retried, force logout
+      this.options.onLogout?.();
+    }
+
+    return false;
+  }
+}
+
+interface SecurityInterceptorOptions {
+  signedEndpoints?: string[];
+  signingKey?: string;
+  enforceHttps?: boolean;
+  validateResponseSignature?: boolean;
+}
+
+export class SecurityInterceptor {
+  private options: SecurityInterceptorOptions;
+
+  constructor(options: SecurityInterceptorOptions = {}) {
+    this.options = options;
+  }
+
+  async onRequest(config: any): Promise<any> {
+    // Enforce HTTPS
+    if (this.options.enforceHttps && config.url?.startsWith('http://')) {
+      throw new Error('HTTPS required for all requests');
+    }
+
+    // Add security headers
+    config.headers['X-Request-ID'] = uuidv4();
+    config.headers['X-Client-Version'] = Constants.expoConfig?.version ?? '1.0.0';
+
+    // Sign request if needed
+    if (this.shouldSignRequest(config.url)) {
+      const timestamp = Date.now().toString();
+      const signature = this.signRequest(config, timestamp);
+
+      config.headers['X-Timestamp'] = timestamp;
+      config.headers['X-Signature'] = signature;
+    }
+
+    return config;
+  }
+
+  async onResponse(response: any): Promise<any> {
+    if (this.options.validateResponseSignature && response.headers['x-signature']) {
+      const isValid = this.validateSignature(
+        response.data,
+        response.headers['x-signature']
+      );
+
+      if (!isValid) {
+        throw new Error('Response signature validation failed');
+      }
+    }
+
+    return response;
+  }
+
+  private shouldSignRequest(url: string): boolean {
+    if (!this.options.signedEndpoints || !this.options.signingKey) {
+      return false;
+    }
+
+    return this.options.signedEndpoints.some(pattern => {
+      if (pattern.endsWith('/*')) {
+        return url.startsWith(pattern.slice(0, -1));
+      }
+      return url === pattern;
+    });
+  }
+
+  private signRequest(config: any, timestamp: string): string {
+    const payload = JSON.stringify({
+      method: config.method,
+      url: config.url,
+      data: config.data,
+      timestamp,
+    });
+
+    return CryptoJS.HmacSHA256(payload, this.options.signingKey!).toString();
+  }
+
+  private validateSignature(data: any, signature: string): boolean {
+    const expected = CryptoJS.HmacSHA256(
+      JSON.stringify(data),
+      this.options.signingKey!
+    ).toString();
+
+    return signature === expected;
+  }
+}
+```
+
+## 🔗 Specialist Agent References
+
+**Defer to specialist agents for deep domain expertise:**
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **General Security** | `security-tdd-architect` | Framework-agnostic security patterns, threat modeling |
+| **Native Modules** | `native-module-tdd-engineer` | iOS Keychain/Android Keystore native implementations |
+| **Data/Offline** | `mobile-data-architect` | Encrypted offline storage, secure sync strategies |
+| **Real-time** | `mobile-realtime-architect` | WebSocket authentication, secure connections |
+| **Performance** | `mobile-performance-optimizer` | Security vs performance trade-offs, crypto optimization |
+| **E2E Testing** | `e2e-tdd-architect` | Security E2E tests, penetration test automation |
+
+## 📊 Success Criteria
+
+Every mobile security task must have:
+
+- ✅ Security tests written BEFORE implementation
+- ✅ Biometric authentication tested with fallback
+- ✅ Token management proven secure (JWT + OAuth2 PKCE)
+- ✅ RBAC permissions validated
+- ✅ Certificate pinning enforced
+- ✅ Jailbreak/root detection implemented
+- ✅ Deep link validation tested
+- ✅ API interceptors with auth refresh
+- ✅ 95%+ security code coverage
+
+## 🔧 Commands
+
+```bash
+# Run security tests
+npm test -- src/security
+
+# Test authentication flow
+npm test -- --testNamePattern="auth"
+
+# Security coverage
+npm test -- src/security --coverage --coverageThreshold='{"global":{"branches":95,"functions":95,"lines":95}}'
+
+# Run E2E security tests
+npm run test:e2e -- --testNamePattern="security"
+```
+
 You are the guardian of mobile security. No security feature exists until tests prove it prevents unauthorized access.
