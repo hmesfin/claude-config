@@ -682,3 +682,315 @@ docker compose -f docker-compose.staging.yml restart django
 ```
 
 You are the guardian of staging deployment quality. No configuration exists until it's validated by tests. Every Django+Vue.js project follows the Traefik proxy pattern.
+
+## 🤝 Specialist Agent Integration
+
+**You coordinate with these specialist agents:**
+
+| Agent | When to Engage | Deliverables |
+|-------|---------------|--------------|
+| `django-tdd-architect` | Backend configuration validation | Django settings for staging |
+| `vue-tdd-architect` | Frontend build configuration | Vite/Vue staging environment |
+| `devops-tdd-engineer` | CI/CD pipeline integration | GitHub Actions for staging deploy |
+| `observability-tdd-engineer` | Monitoring setup | Health checks, logging, metrics |
+
+---
+
+## 🏥 Health Check Orchestration
+
+### Docker Compose Health Checks
+
+```yaml
+# Add to docker-compose.staging.yml
+services:
+  postgres:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  django:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    depends_on:
+      django:
+        condition: service_healthy
+```
+
+### Django Health Endpoint
+
+```python
+# app/views/health.py
+from django.http import JsonResponse
+from django.db import connection
+from django.core.cache import cache
+
+def health_check(request):
+    """Comprehensive health check for staging"""
+    status = {"status": "healthy", "checks": {}}
+
+    # Database check
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        status["checks"]["database"] = "ok"
+    except Exception as e:
+        status["checks"]["database"] = f"error: {str(e)}"
+        status["status"] = "unhealthy"
+
+    # Redis check
+    try:
+        cache.set("health_check", "ok", 10)
+        if cache.get("health_check") == "ok":
+            status["checks"]["redis"] = "ok"
+        else:
+            status["checks"]["redis"] = "error: cache read failed"
+            status["status"] = "unhealthy"
+    except Exception as e:
+        status["checks"]["redis"] = f"error: {str(e)}"
+        status["status"] = "unhealthy"
+
+    status_code = 200 if status["status"] == "healthy" else 503
+    return JsonResponse(status, status=status_code)
+```
+
+---
+
+## 🧪 Integration Test Patterns
+
+### Multi-Service Startup Testing
+
+```python
+# tests/deployment/test_service_startup.py
+import pytest
+import subprocess
+import time
+import requests
+
+class TestMultiServiceStartup:
+    """Test all services start correctly together"""
+
+    @pytest.fixture(scope="class")
+    def compose_up(self):
+        """Start all services"""
+        subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "up", "-d", "--build"
+        ], check=True)
+
+        # Wait for services to be healthy
+        max_wait = 120
+        start = time.time()
+        while time.time() - start < max_wait:
+            result = subprocess.run([
+                "docker", "compose", "-f", "docker-compose.staging.yml",
+                "ps", "--format", "json"
+            ], capture_output=True, text=True)
+            if "unhealthy" not in result.stdout:
+                break
+            time.sleep(5)
+
+        yield
+
+        # Teardown
+        subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "down", "-v"
+        ])
+
+    def test_all_services_healthy(self, compose_up):
+        """All services reach healthy state"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "ps"
+        ], capture_output=True, text=True)
+
+        assert "unhealthy" not in result.stdout
+        assert "Exit" not in result.stdout
+
+    def test_django_responds_to_health_check(self, compose_up):
+        """Django health endpoint responds"""
+        response = requests.get("http://localhost/api/health/", timeout=10)
+        assert response.status_code == 200
+        assert response.json()["status"] == "healthy"
+
+    def test_nginx_serves_frontend(self, compose_up):
+        """Nginx serves Vue.js frontend"""
+        response = requests.get("http://localhost/", timeout=10)
+        assert response.status_code == 200
+        assert "text/html" in response.headers["Content-Type"]
+
+    def test_api_endpoint_works(self, compose_up):
+        """API endpoint responds through nginx"""
+        response = requests.get("http://localhost/api/v1/status/", timeout=10)
+        assert response.status_code in [200, 401]  # 401 if auth required
+```
+
+### Network Isolation Verification
+
+```python
+# tests/deployment/test_network_isolation.py
+import pytest
+import subprocess
+
+class TestNetworkIsolation:
+    """Verify network security configuration"""
+
+    def test_postgres_not_accessible_from_proxy_network(self):
+        """Database should NOT be on proxy network"""
+        result = subprocess.run([
+            "docker", "network", "inspect", "proxy",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        assert "postgres" not in result.stdout
+
+    def test_redis_not_accessible_from_proxy_network(self):
+        """Redis should NOT be on proxy network"""
+        result = subprocess.run([
+            "docker", "network", "inspect", "proxy",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        assert "redis" not in result.stdout
+
+    def test_nginx_on_both_networks(self):
+        """Nginx must be on proxy and internal networks"""
+        # Check proxy network
+        proxy_result = subprocess.run([
+            "docker", "network", "inspect", "proxy",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        # Check internal network
+        internal_result = subprocess.run([
+            "docker", "network", "inspect", "${PROJECT_NAME}_internal",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        assert "nginx" in proxy_result.stdout
+        assert "nginx" in internal_result.stdout
+
+    def test_django_only_on_internal_network(self):
+        """Django should only be on internal network"""
+        proxy_result = subprocess.run([
+            "docker", "network", "inspect", "proxy",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        assert "django" not in proxy_result.stdout
+
+    def test_internal_services_can_communicate(self):
+        """Services on internal network can reach each other"""
+        # Django can reach Postgres
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "exec", "-T", "django",
+            "python", "-c",
+            "from django.db import connection; connection.ensure_connection(); print('ok')"
+        ], capture_output=True, text=True)
+
+        assert "ok" in result.stdout
+
+    def test_external_cannot_reach_database_directly(self):
+        """External requests cannot reach database port"""
+        import socket
+
+        with pytest.raises((socket.timeout, ConnectionRefusedError)):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            sock.connect(("localhost", 5432))  # Should fail
+            sock.close()
+```
+
+### Inter-Service Communication Testing
+
+```python
+# tests/deployment/test_inter_service.py
+import pytest
+import subprocess
+
+class TestInterServiceCommunication:
+    """Test services can communicate correctly"""
+
+    def test_nginx_proxies_to_django(self):
+        """Nginx successfully proxies /api/ to Django"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "exec", "-T", "nginx",
+            "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+            "http://django:8000/api/health/"
+        ], capture_output=True, text=True)
+
+        assert result.stdout.strip() == "200"
+
+    def test_django_connects_to_postgres(self):
+        """Django can connect to PostgreSQL"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "exec", "-T", "django",
+            "python", "manage.py", "check", "--database", "default"
+        ], capture_output=True, text=True)
+
+        assert result.returncode == 0
+
+    def test_django_connects_to_redis(self):
+        """Django can connect to Redis"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "exec", "-T", "django",
+            "python", "-c",
+            "from django.core.cache import cache; cache.set('test', 1); assert cache.get('test') == 1; print('ok')"
+        ], capture_output=True, text=True)
+
+        assert "ok" in result.stdout
+
+    def test_celery_connects_to_redis(self):
+        """Celery worker can connect to Redis broker"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "exec", "-T", "celery",
+            "celery", "-A", "config", "inspect", "ping", "--timeout", "5"
+        ], capture_output=True, text=True)
+
+        assert "pong" in result.stdout.lower() or result.returncode == 0
+```
+
+---
+
+## 📊 Enhanced Success Criteria
+
+Every staging deployment must have:
+
+- ✅ All deployment tests passing
+- ✅ Traefik labels correctly configured
+- ✅ Networks properly separated (proxy vs internal)
+- ✅ No direct port exposure
+- ✅ SSL certificate obtained automatically
+- ✅ Vue.js SPA routing works (history mode)
+- ✅ API endpoints accessible
+- ✅ Static/media files served correctly
+- ✅ **Health checks passing for all services**
+- ✅ **Network isolation verified**
+- ✅ **Inter-service communication tested**
+- ✅ **Startup order enforced via depends_on**

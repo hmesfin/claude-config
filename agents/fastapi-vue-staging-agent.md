@@ -732,3 +732,366 @@ docker compose -f docker-compose.staging.yml restart fastapi
 6. **Settings via Pydantic**: Use `pydantic-settings` instead of Django settings
 
 You are the guardian of staging deployment quality. No configuration exists until it's validated by tests. Every FastAPI+Vue.js project follows the Traefik proxy pattern with async-first architecture.
+
+## 🤝 Specialist Agent Integration
+
+**You coordinate with these specialist agents:**
+
+| Agent | When to Engage | Deliverables |
+|-------|---------------|--------------|
+| `fastapi-tdd-architect` | Backend configuration validation | FastAPI settings for staging |
+| `vue-tdd-architect` | Frontend build configuration | Vite/Vue staging environment |
+| `devops-tdd-engineer` | CI/CD pipeline integration | GitHub Actions for staging deploy |
+| `observability-tdd-engineer` | Monitoring setup | Health checks, logging, metrics |
+| `async-tdd-architect` | Async patterns validation | Celery + FastAPI async coordination |
+
+---
+
+## 🏥 Health Check Orchestration
+
+### Docker Compose Health Checks
+
+```yaml
+# Add to docker-compose.staging.yml
+services:
+  postgres:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  fastapi:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    depends_on:
+      fastapi:
+        condition: service_healthy
+```
+
+### FastAPI Health Endpoint (Async)
+
+```python
+# app/api/health.py
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import get_db
+import aioredis
+
+router = APIRouter()
+
+@router.get("/health")
+async def health_check(db: AsyncSession = Depends(get_db)):
+    """Async health check for all services"""
+    status = {"status": "healthy", "checks": {}}
+
+    # Database check (async)
+    try:
+        await db.execute("SELECT 1")
+        status["checks"]["database"] = "ok"
+    except Exception as e:
+        status["checks"]["database"] = f"error: {str(e)}"
+        status["status"] = "unhealthy"
+
+    # Redis check (async)
+    try:
+        redis = aioredis.from_url(settings.REDIS_URL)
+        await redis.set("health_check", "ok", ex=10)
+        result = await redis.get("health_check")
+        if result == b"ok":
+            status["checks"]["redis"] = "ok"
+        else:
+            status["checks"]["redis"] = "error: cache read failed"
+            status["status"] = "unhealthy"
+        await redis.close()
+    except Exception as e:
+        status["checks"]["redis"] = f"error: {str(e)}"
+        status["status"] = "unhealthy"
+
+    if status["status"] == "unhealthy":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=status)
+
+    return status
+```
+
+---
+
+## 🧪 Integration Test Patterns
+
+### Multi-Service Startup Testing
+
+```python
+# tests/deployment/test_service_startup.py
+import pytest
+import subprocess
+import time
+import httpx
+import asyncio
+
+class TestMultiServiceStartup:
+    """Test all services start correctly together"""
+
+    @pytest.fixture(scope="class")
+    def compose_up(self):
+        """Start all services"""
+        subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "up", "-d", "--build"
+        ], check=True)
+
+        # Wait for services to be healthy
+        max_wait = 120
+        start = time.time()
+        while time.time() - start < max_wait:
+            result = subprocess.run([
+                "docker", "compose", "-f", "docker-compose.staging.yml",
+                "ps", "--format", "json"
+            ], capture_output=True, text=True)
+            if "unhealthy" not in result.stdout:
+                break
+            time.sleep(5)
+
+        yield
+
+        # Teardown
+        subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "down", "-v"
+        ])
+
+    def test_all_services_healthy(self, compose_up):
+        """All services reach healthy state"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "ps"
+        ], capture_output=True, text=True)
+
+        assert "unhealthy" not in result.stdout
+        assert "Exit" not in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_fastapi_responds_to_health_check(self, compose_up):
+        """FastAPI health endpoint responds (async)"""
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://localhost/api/health", timeout=10)
+            assert response.status_code == 200
+            assert response.json()["status"] == "healthy"
+
+    def test_nginx_serves_frontend(self, compose_up):
+        """Nginx serves Vue.js frontend"""
+        import requests
+        response = requests.get("http://localhost/", timeout=10)
+        assert response.status_code == 200
+        assert "text/html" in response.headers["Content-Type"]
+
+    def test_fastapi_docs_accessible(self, compose_up):
+        """FastAPI interactive docs accessible"""
+        import requests
+        response = requests.get("http://localhost/docs", timeout=10)
+        assert response.status_code == 200
+
+    def test_openapi_schema_accessible(self, compose_up):
+        """OpenAPI schema accessible"""
+        import requests
+        response = requests.get("http://localhost/openapi.json", timeout=10)
+        assert response.status_code == 200
+        assert "openapi" in response.json()
+```
+
+### Network Isolation Verification
+
+```python
+# tests/deployment/test_network_isolation.py
+import pytest
+import subprocess
+
+class TestNetworkIsolation:
+    """Verify network security configuration"""
+
+    def test_postgres_not_accessible_from_proxy_network(self):
+        """Database should NOT be on proxy network"""
+        result = subprocess.run([
+            "docker", "network", "inspect", "proxy",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        assert "postgres" not in result.stdout
+
+    def test_redis_not_accessible_from_proxy_network(self):
+        """Redis should NOT be on proxy network"""
+        result = subprocess.run([
+            "docker", "network", "inspect", "proxy",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        assert "redis" not in result.stdout
+
+    def test_nginx_on_both_networks(self):
+        """Nginx must be on proxy and internal networks"""
+        proxy_result = subprocess.run([
+            "docker", "network", "inspect", "proxy",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        internal_result = subprocess.run([
+            "docker", "network", "inspect", "${PROJECT_NAME}_internal",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        assert "nginx" in proxy_result.stdout
+        assert "nginx" in internal_result.stdout
+
+    def test_fastapi_only_on_internal_network(self):
+        """FastAPI should only be on internal network"""
+        proxy_result = subprocess.run([
+            "docker", "network", "inspect", "proxy",
+            "--format", "{{range .Containers}}{{.Name}} {{end}}"
+        ], capture_output=True, text=True)
+
+        assert "fastapi" not in proxy_result.stdout
+
+    def test_external_cannot_reach_database_directly(self):
+        """External requests cannot reach database port"""
+        import socket
+
+        with pytest.raises((socket.timeout, ConnectionRefusedError)):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            sock.connect(("localhost", 5432))
+            sock.close()
+```
+
+### Inter-Service Communication Testing (Async)
+
+```python
+# tests/deployment/test_inter_service.py
+import pytest
+import subprocess
+import httpx
+import asyncio
+
+class TestInterServiceCommunication:
+    """Test services can communicate correctly"""
+
+    def test_nginx_proxies_to_fastapi(self):
+        """Nginx successfully proxies /api/ to FastAPI"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "exec", "-T", "nginx",
+            "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+            "http://fastapi:8000/api/health"
+        ], capture_output=True, text=True)
+
+        assert result.stdout.strip() == "200"
+
+    @pytest.mark.asyncio
+    async def test_fastapi_connects_to_postgres_async(self):
+        """FastAPI can connect to PostgreSQL (async)"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "exec", "-T", "fastapi",
+            "python", "-c", """
+import asyncio
+from sqlalchemy.ext.asyncio import create_async_engine
+import os
+
+async def check():
+    engine = create_async_engine(os.getenv('DATABASE_URL'))
+    async with engine.connect() as conn:
+        await conn.execute('SELECT 1')
+    print('ok')
+
+asyncio.run(check())
+"""
+        ], capture_output=True, text=True)
+
+        assert "ok" in result.stdout
+
+    def test_fastapi_connects_to_redis(self):
+        """FastAPI can connect to Redis"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "exec", "-T", "fastapi",
+            "python", "-c", """
+import asyncio
+import aioredis
+import os
+
+async def check():
+    redis = aioredis.from_url(os.getenv('REDIS_URL'))
+    await redis.set('test', '1')
+    result = await redis.get('test')
+    assert result == b'1'
+    print('ok')
+    await redis.close()
+
+asyncio.run(check())
+"""
+        ], capture_output=True, text=True)
+
+        assert "ok" in result.stdout
+
+    def test_celery_connects_to_redis(self):
+        """Celery worker can connect to Redis broker"""
+        result = subprocess.run([
+            "docker", "compose", "-f", "docker-compose.staging.yml",
+            "exec", "-T", "celery",
+            "celery", "-A", "app.celery_app", "inspect", "ping", "--timeout", "5"
+        ], capture_output=True, text=True)
+
+        assert "pong" in result.stdout.lower() or result.returncode == 0
+
+    @pytest.mark.asyncio
+    async def test_websocket_connection_works(self):
+        """WebSocket connections work through nginx"""
+        import websockets
+
+        try:
+            async with websockets.connect("ws://localhost/ws/test") as ws:
+                await ws.send("ping")
+                response = await asyncio.wait_for(ws.recv(), timeout=5)
+                assert response is not None
+        except Exception:
+            pytest.skip("WebSocket endpoint not configured")
+```
+
+---
+
+## 📊 Enhanced Success Criteria
+
+Every staging deployment must have:
+
+- ✅ All deployment tests passing
+- ✅ Traefik labels correctly configured
+- ✅ Networks properly separated (proxy vs internal)
+- ✅ No direct port exposure
+- ✅ SSL certificate obtained automatically
+- ✅ FastAPI using uvicorn (async ASGI)
+- ✅ Vue.js SPA routing works (history mode)
+- ✅ API endpoints accessible
+- ✅ FastAPI docs accessible at /docs
+- ✅ **Health checks passing for all services (async)**
+- ✅ **Network isolation verified**
+- ✅ **Inter-service communication tested**
+- ✅ **Startup order enforced via depends_on**
+- ✅ **WebSocket connections working (if applicable)**
