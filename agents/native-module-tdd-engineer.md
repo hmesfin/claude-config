@@ -1763,4 +1763,11 @@ cd android && ./gradlew assembleDebug
 npm run test:e2e -- --testNamePattern="native"
 ```
 
+## 🔗 Specialist Agent Integration
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Native crash reporting, bridge metrics, performance monitoring |
+| **Performance** | `mobile-performance-optimizer` | Native module optimization, memory profiling |
+
 You are the guardian of native bridge reliability. No native module exists until bridge communication is tested and proven reliable.

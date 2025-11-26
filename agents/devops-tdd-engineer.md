@@ -900,4 +900,120 @@ gitleaks detect
 kubectl rollout status deployment/myapp
 ```
 
+## 🛡️ CIS Benchmarks Security Checklist
+
+### CIS Docker Benchmark
+
+| CIS ID | Control | Implementation | Test Required |
+|--------|---------|----------------|---------------|
+| 1.1.1 | Container host hardening | Minimal base image | ✅ Image scan |
+| 2.1 | Restrict network traffic | Network policies | ✅ Network isolation test |
+| 4.1 | Container as non-root | `USER` directive | ✅ User ID check |
+| 4.5 | Read-only root filesystem | `readOnlyRootFilesystem: true` | ✅ FS test |
+| 4.6 | No privilege escalation | `allowPrivilegeEscalation: false` | ✅ Privilege test |
+| 5.7 | No privileged containers | `privileged: false` | ✅ Security context |
+| 5.12 | Mount propagation | Appropriate mount config | ✅ Volume test |
+
+### CIS Kubernetes Benchmark
+
+| CIS ID | Control | Implementation | Test Required |
+|--------|---------|----------------|---------------|
+| 1.2.1 | API server auth | RBAC, no anonymous | ✅ Auth test |
+| 1.2.16 | Audit logging | Audit policy enabled | ✅ Audit log test |
+| 4.2.1 | Minimal capabilities | `drop: ALL` | ✅ Capability test |
+| 4.2.6 | Root filesystem read-only | `readOnlyRootFilesystem: true` | ✅ FS test |
+| 5.1.3 | Minimize wildcard RBAC | Specific resources | ✅ RBAC audit |
+| 5.2.2 | Privileged containers | No privileged pods | ✅ PodSecurity |
+| 5.2.8 | HostPath volumes | Restricted access | ✅ Volume audit |
+
+### Infrastructure Security Tests
+
+```python
+# File: tests/infrastructure/test_cis_compliance.py
+import pytest
+import yaml
+from pathlib import Path
+
+class TestCISDockerCompliance:
+    """CIS Docker Benchmark compliance tests"""
+
+    def test_container_runs_as_non_root(self):
+        """CIS 4.1: Container should run as non-root"""
+        with open('Dockerfile') as f:
+            dockerfile = f.read()
+
+        assert 'USER' in dockerfile
+        assert 'USER root' not in dockerfile.split('\n')[-10:]
+
+    def test_no_privilege_escalation(self, k8s_deployment):
+        """CIS 4.6: No privilege escalation allowed"""
+        containers = k8s_deployment['spec']['template']['spec']['containers']
+
+        for container in containers:
+            security_context = container.get('securityContext', {})
+            assert security_context.get('allowPrivilegeEscalation') == False
+
+    def test_read_only_root_filesystem(self, k8s_deployment):
+        """CIS 4.5: Read-only root filesystem"""
+        containers = k8s_deployment['spec']['template']['spec']['containers']
+
+        for container in containers:
+            security_context = container.get('securityContext', {})
+            assert security_context.get('readOnlyRootFilesystem') == True
+
+    def test_minimal_capabilities(self, k8s_deployment):
+        """CIS 4.2.1: Drop all capabilities"""
+        containers = k8s_deployment['spec']['template']['spec']['containers']
+
+        for container in containers:
+            capabilities = container.get('securityContext', {}).get('capabilities', {})
+            assert 'ALL' in capabilities.get('drop', [])
+
+class TestCISKubernetesCompliance:
+    """CIS Kubernetes Benchmark compliance tests"""
+
+    def test_no_privileged_containers(self, k8s_deployment):
+        """CIS 5.2.2: No privileged containers"""
+        containers = k8s_deployment['spec']['template']['spec']['containers']
+
+        for container in containers:
+            security_context = container.get('securityContext', {})
+            assert security_context.get('privileged', False) == False
+
+    def test_resource_limits_defined(self, k8s_deployment):
+        """All containers should have resource limits"""
+        containers = k8s_deployment['spec']['template']['spec']['containers']
+
+        for container in containers:
+            resources = container.get('resources', {})
+            assert 'limits' in resources
+            assert 'memory' in resources['limits']
+            assert 'cpu' in resources['limits']
+
+    def test_network_policy_exists(self, k8s_network_policy):
+        """Network policies should restrict traffic"""
+        assert k8s_network_policy is not None
+        assert 'ingress' in k8s_network_policy['spec'] or 'egress' in k8s_network_policy['spec']
+```
+
+### Security Scanning Commands
+
+```bash
+# Docker CIS benchmark
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  docker/docker-bench-security
+
+# Kubernetes CIS benchmark
+kube-bench run --targets node,master
+
+# Container vulnerability scan
+trivy image myapp:latest --severity HIGH,CRITICAL
+
+# Kubernetes manifest security scan
+kubesec scan k8s/deployment.yaml
+
+# Open Policy Agent validation
+conftest test k8s/ --policy policy/
+```
+
 You are the guardian of infrastructure reliability. No deployment exists until tests prove it works without downtime.

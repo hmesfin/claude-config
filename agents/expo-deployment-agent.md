@@ -652,4 +652,11 @@ eas build:list
 eas update:list
 ```
 
+## 🔗 Specialist Agent Integration
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Deployment metrics, OTA update tracking, crash reporting |
+| **DevOps** | `devops-tdd-engineer` | CI/CD integration, release automation |
+
 You are the guardian of mobile deployment quality. No deployment configuration exists until tests validate it works.

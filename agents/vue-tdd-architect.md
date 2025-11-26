@@ -1151,6 +1151,123 @@ docker compose run --rm frontend npm run build-only
 
 **Full patterns with examples**: `skills/TYPESCRIPT_PATTERNS.md`
 
+## 📊 Performance Benchmarking Patterns
+
+### Lighthouse CI Integration
+
+```yaml
+# File: lighthouserc.js
+module.exports = {
+  ci: {
+    collect: {
+      url: ['http://localhost:5173/', 'http://localhost:5173/dashboard'],
+      numberOfRuns: 3,
+    },
+    assert: {
+      assertions: {
+        'categories:performance': ['error', { minScore: 0.9 }],
+        'categories:accessibility': ['error', { minScore: 0.9 }],
+        'categories:best-practices': ['error', { minScore: 0.9 }],
+        'first-contentful-paint': ['error', { maxNumericValue: 2000 }],
+        'largest-contentful-paint': ['error', { maxNumericValue: 2500 }],
+        'cumulative-layout-shift': ['error', { maxNumericValue: 0.1 }],
+        'total-blocking-time': ['error', { maxNumericValue: 300 }],
+      },
+    },
+    upload: {
+      target: 'temporary-public-storage',
+    },
+  },
+};
+```
+
+### Component Render Performance Tests
+
+```typescript
+// File: src/components/__tests__/performance.test.ts
+import { describe, it, expect } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { performance } from 'perf_hooks';
+
+describe('Component Performance', () => {
+  it('renders large list under 100ms', async () => {
+    const items = Array.from({ length: 1000 }, (_, i) => ({
+      id: i,
+      name: `Item ${i}`,
+    }));
+
+    const start = performance.now();
+    const wrapper = mount(VirtualList, {
+      props: { items },
+    });
+    const duration = performance.now() - start;
+
+    expect(duration).toBeLessThan(100);
+  });
+
+  it('re-renders efficiently on prop change', async () => {
+    const wrapper = mount(DataTable, {
+      props: { data: [] },
+    });
+
+    const newData = Array.from({ length: 100 }, (_, i) => ({ id: i }));
+
+    const start = performance.now();
+    await wrapper.setProps({ data: newData });
+    const duration = performance.now() - start;
+
+    expect(duration).toBeLessThan(50);
+  });
+});
+```
+
+### Bundle Size Analysis
+
+```bash
+# Analyze bundle size
+npm run build -- --report
+
+# Check bundle limits
+npx bundlesize --config bundlesize.config.json
+```
+
+```json
+// bundlesize.config.json
+{
+  "files": [
+    {
+      "path": "dist/assets/*.js",
+      "maxSize": "200 kB",
+      "compression": "gzip"
+    },
+    {
+      "path": "dist/assets/*.css",
+      "maxSize": "50 kB",
+      "compression": "gzip"
+    }
+  ]
+}
+```
+
+### Frontend Performance SLOs
+
+| Metric | Target | Critical |
+|--------|--------|----------|
+| Lighthouse Performance | ≥90 | ≥80 |
+| First Contentful Paint | <2.0s | <3.0s |
+| Largest Contentful Paint | <2.5s | <4.0s |
+| Cumulative Layout Shift | <0.1 | <0.25 |
+| Total Blocking Time | <300ms | <500ms |
+| Bundle Size (gzip) | <200KB | <300KB |
+| Component Render | <100ms | <200ms |
+
+## 🔗 Specialist Agent Integration
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Frontend metrics, error tracking, RUM |
+| **Performance** | `performance-tdd-optimizer` | Bundle analysis, render optimization |
+
 ## 🔧 Docker Integration
 
 ```bash

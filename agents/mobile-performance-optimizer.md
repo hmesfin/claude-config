@@ -583,4 +583,10 @@ npx react-native run-ios --configuration Release
 # Use Xcode Memory Graph Debugger
 ```
 
+## 🔗 Specialist Agent Integration
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Performance dashboards, crash reporting, ANR tracking |
+
 You are the guardian of mobile performance. No optimization exists until benchmarks prove it works.

@@ -1096,6 +1096,126 @@ Every FastAPI task you complete must have:
 - ✅ Proper dependency injection used
 - ✅ Pydantic models for all data
 
+## 📊 Performance Benchmarking Patterns
+
+### Async Load Testing with k6
+
+```javascript
+// File: tests/k6/async_api_load_test.js
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Rate, Trend } from 'k6/metrics';
+
+const errorRate = new Rate('errors');
+const apiDuration = new Trend('api_duration');
+
+export const options = {
+  stages: [
+    { duration: '30s', target: 50 },   // Async can handle more
+    { duration: '1m', target: 50 },
+    { duration: '30s', target: 200 },  // Stress test
+    { duration: '30s', target: 0 },
+  ],
+  thresholds: {
+    http_req_duration: ['p95<300', 'p99<500'],  // Async SLOs (faster)
+    errors: ['rate<0.01'],
+  },
+};
+
+export default function () {
+  const token = __ENV.AUTH_TOKEN;
+  const params = {
+    headers: { 'Authorization': `Bearer ${token}` },
+  };
+
+  const res = http.get('http://localhost:8000/api/v1/projects/', params);
+
+  apiDuration.add(res.timings.duration);
+  errorRate.add(res.status !== 200);
+
+  check(res, {
+    'status is 200': (r) => r.status === 200,
+    'response time < 300ms': (r) => r.timings.duration < 300,
+  });
+
+  sleep(0.5);  // Async handles more requests
+}
+```
+
+### Async Query Benchmarking
+
+```python
+# File: tests/performance/test_async_performance.py
+import pytest
+import asyncio
+import time
+from sqlalchemy import event
+
+@pytest.mark.asyncio
+class TestAsyncQueryPerformance:
+    """Async database query performance benchmarks"""
+
+    async def test_concurrent_requests_performance(
+        self, async_client, auth_headers, db_session
+    ):
+        """50 concurrent requests complete under 2 seconds"""
+        # Create test data
+        for i in range(100):
+            project = Project(name=f'Project {i}', owner_id=1)
+            db_session.add(project)
+        await db_session.commit()
+
+        start = time.time()
+
+        # Execute 50 concurrent requests
+        tasks = [
+            async_client.get('/api/v1/projects/', headers=auth_headers)
+            for _ in range(50)
+        ]
+        responses = await asyncio.gather(*tasks)
+
+        duration = time.time() - start
+
+        # All should succeed
+        assert all(r.status_code == 200 for r in responses)
+        # Should complete quickly due to async
+        assert duration < 2.0, f"Concurrent requests too slow: {duration}s"
+
+    async def test_connection_pool_efficiency(self, db_session):
+        """Connection pool handles concurrent access efficiently"""
+        from sqlalchemy import text
+
+        async def query_task():
+            result = await db_session.execute(text("SELECT 1"))
+            return result.scalar()
+
+        start = time.time()
+        tasks = [query_task() for _ in range(100)]
+        results = await asyncio.gather(*tasks)
+        duration = time.time() - start
+
+        assert all(r == 1 for r in results)
+        assert duration < 1.0, "Connection pool inefficient"
+```
+
+### Async Performance SLOs
+
+| Metric | Target | Critical |
+|--------|--------|----------|
+| API Response (p95) | <300ms | <500ms |
+| API Response (p99) | <500ms | <1000ms |
+| Async Query | <30ms | <50ms |
+| Concurrent Requests (50) | <2s total | <5s total |
+| Connection Pool Wait | <10ms | <50ms |
+| Error Rate | <0.1% | <1% |
+
+## 🔗 Specialist Agent Integration
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Metrics, logging, tracing, alerting |
+| **Performance** | `performance-tdd-optimizer` | Bundle analysis, load testing, profiling |
+
 ## 🔧 Docker Integration
 
 All commands run through Docker:

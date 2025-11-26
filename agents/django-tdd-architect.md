@@ -735,6 +735,115 @@ Every Django task you complete must have:
 - ✅ Edge cases covered
 - ✅ Documentation updated
 
+## 📊 Performance Benchmarking Patterns
+
+### Load Testing with k6
+
+```javascript
+// File: tests/k6/api_load_test.js
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Rate, Trend } from 'k6/metrics';
+
+// Custom metrics
+const errorRate = new Rate('errors');
+const apiDuration = new Trend('api_duration');
+
+export const options = {
+  stages: [
+    { duration: '30s', target: 20 },   // Ramp up
+    { duration: '1m', target: 20 },    // Steady state
+    { duration: '30s', target: 100 },  // Stress test
+    { duration: '30s', target: 0 },    // Ramp down
+  ],
+  thresholds: {
+    http_req_duration: ['p95<500', 'p99<1000'],  // Response time SLOs
+    errors: ['rate<0.01'],                       // <1% error rate
+  },
+};
+
+export default function () {
+  const token = __ENV.AUTH_TOKEN;
+  const params = {
+    headers: { 'Authorization': `Bearer ${token}` },
+  };
+
+  // Test project list endpoint
+  const res = http.get('http://localhost:8000/api/v1/projects/', params);
+
+  apiDuration.add(res.timings.duration);
+  errorRate.add(res.status !== 200);
+
+  check(res, {
+    'status is 200': (r) => r.status === 200,
+    'response time < 500ms': (r) => r.timings.duration < 500,
+  });
+
+  sleep(1);
+}
+```
+
+### Database Query Benchmarking
+
+```python
+# File: tests/performance/test_query_performance.py
+import pytest
+from django.test.utils import override_settings
+from django.db import connection, reset_queries
+
+@pytest.mark.django_db
+class TestQueryPerformance:
+    """Database query performance benchmarks"""
+
+    @override_settings(DEBUG=True)
+    def test_project_list_query_count(self):
+        """Project list should use maximum 3 queries"""
+        # Create test data
+        for i in range(50):
+            Project.objects.create(name=f'Project {i}', owner=self.user)
+
+        reset_queries()
+
+        # Execute view
+        response = self.client.get('/api/v1/projects/')
+
+        # Assert query count
+        query_count = len(connection.queries)
+        assert query_count <= 3, f"Too many queries: {query_count}"
+
+    def test_bulk_create_performance(self):
+        """Bulk create 1000 records under 2 seconds"""
+        import time
+
+        projects = [
+            Project(name=f'Project {i}', owner=self.user)
+            for i in range(1000)
+        ]
+
+        start = time.time()
+        Project.objects.bulk_create(projects, batch_size=100)
+        duration = time.time() - start
+
+        assert duration < 2.0, f"Bulk create too slow: {duration}s"
+```
+
+### Performance SLOs
+
+| Metric | Target | Critical |
+|--------|--------|----------|
+| API Response (p95) | <500ms | <1000ms |
+| API Response (p99) | <1000ms | <2000ms |
+| Database Query | <50ms | <100ms |
+| List Endpoint Queries | ≤3 | ≤5 |
+| Error Rate | <0.1% | <1% |
+
+## 🔗 Specialist Agent Integration
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Metrics, logging, tracing, alerting |
+| **Performance** | `performance-tdd-optimizer` | Bundle analysis, load testing, profiling |
+
 ## 🔧 Docker Integration
 
 All commands run through Docker:

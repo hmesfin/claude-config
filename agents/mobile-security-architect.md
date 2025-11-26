@@ -1976,4 +1976,105 @@ npm test -- src/security --coverage --coverageThreshold='{"global":{"branches":9
 npm run test:e2e -- --testNamePattern="security"
 ```
 
+## 🛡️ OWASP MSTG Security Checklist
+
+### Mobile Security Testing Guide (MSTG) Mapping
+
+| Category | Control | React Native Implementation | Test Required |
+|----------|---------|---------------------------|---------------|
+| **MASVS-STORAGE** | | | |
+| MSTG-STORAGE-1 | Secure credential storage | Keychain (iOS) / Keystore (Android) | ✅ Storage encryption tests |
+| MSTG-STORAGE-2 | No sensitive data in logs | Disable console.log in production | ✅ Log scrubbing tests |
+| MSTG-STORAGE-3 | No sensitive data to third parties | Analytics sanitization | ✅ Data leakage tests |
+| MSTG-STORAGE-7 | No sensitive data in backups | Exclude from backup | ✅ Backup exclusion tests |
+| **MASVS-CRYPTO** | | | |
+| MSTG-CRYPTO-1 | No hardcoded keys | Environment config | ✅ Hardcoded secret scan |
+| MSTG-CRYPTO-2 | Strong crypto algorithms | AES-256-GCM, SHA-256 | ✅ Algorithm validation |
+| MSTG-CRYPTO-6 | Secure random generation | `crypto.getRandomValues()` | ✅ Entropy tests |
+| **MASVS-AUTH** | | | |
+| MSTG-AUTH-1 | Remote authentication | OAuth2 PKCE, JWT | ✅ Auth flow tests |
+| MSTG-AUTH-8 | Biometric auth | Face ID / Touch ID | ✅ Biometric tests |
+| MSTG-AUTH-9 | Second factor | TOTP, SMS, Push | ✅ MFA tests |
+| **MASVS-NETWORK** | | | |
+| MSTG-NETWORK-1 | TLS for all traffic | HTTPS only, no HTTP | ✅ MITM prevention |
+| MSTG-NETWORK-2 | SSL pinning | Certificate/public key pinning | ✅ Pinning validation |
+| MSTG-NETWORK-3 | Cert validation | No disabled validation | ✅ Cert chain tests |
+| **MASVS-PLATFORM** | | | |
+| MSTG-PLATFORM-2 | Input validation | Deep link sanitization | ✅ Deep link injection |
+| MSTG-PLATFORM-3 | Custom URL schemes | Validated scheme handling | ✅ URL scheme tests |
+| **MASVS-CODE** | | | |
+| MSTG-CODE-2 | Debug disabled | `__DEV__` false in release | ✅ Debug mode check |
+| MSTG-CODE-4 | No hardcoded URLs | Environment config | ✅ Hardcoded URL scan |
+
+### MSTG Test Implementation
+
+```typescript
+// File: src/security/__tests__/mstg-compliance.test.ts
+describe('MSTG Compliance', () => {
+  describe('MASVS-STORAGE', () => {
+    it('MSTG-STORAGE-1: credentials stored in secure storage', async () => {
+      // Verify Keychain/Keystore usage
+      const storage = new SecureStorage();
+      await storage.set('token', 'test-token');
+
+      // Should use native secure storage, not AsyncStorage
+      expect(SecureStore.setItemAsync).toHaveBeenCalled();
+      expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+    });
+
+    it('MSTG-STORAGE-2: no sensitive data in console logs', () => {
+      // Production build should not log sensitive data
+      if (!__DEV__) {
+        expect(console.log).toBeUndefined();
+      }
+    });
+  });
+
+  describe('MASVS-NETWORK', () => {
+    it('MSTG-NETWORK-2: certificate pinning enforced', async () => {
+      const api = new SecureApiClient({
+        pinning: { enabled: true },
+      });
+
+      // MITM attempt should fail
+      await expect(api.get('/test', { interceptCert: 'fake' }))
+        .rejects.toThrow('Certificate pinning validation failed');
+    });
+  });
+
+  describe('MASVS-AUTH', () => {
+    it('MSTG-AUTH-1: OAuth2 PKCE flow implemented', async () => {
+      const auth = new OAuthClient();
+      const { codeVerifier, codeChallenge } = auth.generatePKCE();
+
+      expect(codeChallenge).toBeDefined();
+      expect(codeVerifier.length).toBeGreaterThanOrEqual(43);
+    });
+  });
+});
+```
+
+### Mobile Security Scanning
+
+```bash
+# iOS security scan (using MobSF)
+mobsf -i ./ios/build/App.ipa -o mstg_report.json
+
+# Android security scan
+mobsf -i ./android/app/build/outputs/apk/release/app-release.apk -o mstg_report.json
+
+# Check for hardcoded secrets
+gitleaks detect --source . --report-format json --report-path secrets.json
+
+# Dependency vulnerabilities
+npm audit --audit-level=high
+npx snyk test
+```
+
+## 🔗 Specialist Agent Integration
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Security event monitoring, crash reporting |
+
 You are the guardian of mobile security. No security feature exists until tests prove it prevents unauthorized access.

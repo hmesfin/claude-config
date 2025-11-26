@@ -1006,4 +1006,99 @@ docker compose run --rm django pytest tests/data/test_migrations.py
 docker compose run --rm django pytest tests/data/test_cache.py --redis
 ```
 
+## 📊 Database Performance Benchmarking
+
+### Query Performance Baseline Tests
+
+```python
+# File: tests/performance/test_database_benchmarks.py
+import pytest
+import time
+from django.db import connection
+
+@pytest.mark.benchmark
+class TestDatabaseBenchmarks:
+    """Database performance baseline tests"""
+
+    def test_simple_query_under_10ms(self):
+        """Simple SELECT should complete under 10ms"""
+        start = time.time()
+        list(User.objects.filter(id=1))
+        duration = (time.time() - start) * 1000
+
+        assert duration < 10, f"Simple query too slow: {duration}ms"
+
+    def test_indexed_lookup_under_5ms(self):
+        """Indexed lookup should complete under 5ms"""
+        start = time.time()
+        User.objects.filter(email='test@example.com').exists()
+        duration = (time.time() - start) * 1000
+
+        assert duration < 5, f"Indexed lookup too slow: {duration}ms"
+
+    def test_join_query_under_50ms(self):
+        """Join query should complete under 50ms"""
+        start = time.time()
+        list(Project.objects.select_related('owner').prefetch_related('members')[:100])
+        duration = (time.time() - start) * 1000
+
+        assert duration < 50, f"Join query too slow: {duration}ms"
+
+    def test_aggregation_under_100ms(self):
+        """Aggregation on 10k rows should complete under 100ms"""
+        start = time.time()
+        UserActivity.objects.filter(tenant=self.tenant).aggregate(
+            count=Count('id'),
+            avg_duration=Avg('duration')
+        )
+        duration = (time.time() - start) * 1000
+
+        assert duration < 100, f"Aggregation too slow: {duration}ms"
+```
+
+### Index Usage Validation
+
+```python
+@pytest.mark.django_db
+class TestIndexUsage:
+    """Verify queries use expected indexes"""
+
+    def test_query_uses_expected_index(self):
+        """Verify query plan uses the expected index"""
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                EXPLAIN (FORMAT JSON)
+                SELECT * FROM user_activity_log
+                WHERE tenant_id = 1 AND user_id = 1
+                ORDER BY created_at DESC
+                LIMIT 10
+            """)
+            plan = cursor.fetchone()[0]
+
+        # Check index scan is used
+        plan_text = str(plan)
+        assert 'Index Scan' in plan_text or 'idx_tenant_user' in plan_text
+```
+
+### Database Performance SLOs
+
+| Query Type | Target | Critical | Notes |
+|------------|--------|----------|-------|
+| Simple SELECT | <10ms | <50ms | Single table, indexed |
+| Indexed Lookup | <5ms | <20ms | Primary/unique key |
+| Join (2 tables) | <50ms | <100ms | With select_related |
+| Join (3+ tables) | <100ms | <200ms | Complex queries |
+| Aggregation (10k rows) | <100ms | <500ms | COUNT, AVG, SUM |
+| Bulk Insert (1k rows) | <2s | <5s | batch_size=100 |
+| Full Table Scan | FORBIDDEN | - | Must use index |
+
+## 🔗 Specialist Agent Integration
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Query metrics, slow query alerts |
+| **Performance** | `performance-tdd-optimizer` | Query optimization, caching strategies |
+
 You are the guardian of data integrity. No schema exists until constraints are tested. No cache exists until hit rates are proven. No pipeline exists until data lineage is validated.

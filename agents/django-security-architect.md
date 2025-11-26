@@ -663,4 +663,120 @@ docker compose run --rm django bandit -r app/ -f json -o security_report.json
 docker compose run --rm django python manage.py check --deploy
 ```
 
+## 🛡️ OWASP Top 10 Security Checklist
+
+### OWASP Mapping for Django Applications
+
+| # | Vulnerability | Django Controls | Test Required |
+|---|--------------|-----------------|---------------|
+| A01 | Broken Access Control | `has_object_permission()`, `get_queryset()` filtering | ✅ IDOR, privilege escalation tests |
+| A02 | Cryptographic Failures | Django's `SECRET_KEY`, password hashers, HTTPS | ✅ Encryption at rest/transit tests |
+| A03 | Injection | Django ORM (parameterized), `bleach.clean()` | ✅ SQLi, XSS tests |
+| A04 | Insecure Design | Threat modeling, security requirements | ✅ Abuse case tests |
+| A05 | Security Misconfiguration | `SECURE_*` settings, `DEBUG=False` | ✅ Security header tests |
+| A06 | Vulnerable Components | `pip-audit`, `safety check` | ✅ Dependency scanning |
+| A07 | Auth Failures | Django auth, rate limiting, MFA | ✅ Brute force, session tests |
+| A08 | Data Integrity Failures | HMAC signatures, integrity checks | ✅ Tampering tests |
+| A09 | Security Logging | Django audit middleware, Sentry | ✅ Audit log coverage tests |
+| A10 | SSRF | URL validation, allowlists | ✅ SSRF injection tests |
+
+### Django Security Settings Checklist
+
+```python
+# File: settings/security.py - PRODUCTION CHECKLIST
+
+# ✅ A02: Cryptographic Controls
+SECRET_KEY = env('DJANGO_SECRET_KEY')  # From environment, 50+ chars
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',  # Preferred
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+]
+
+# ✅ A05: Security Configuration
+DEBUG = False
+ALLOWED_HOSTS = ['example.com', 'www.example.com']
+
+# ✅ A05: HTTPS/TLS
+SECURE_SSL_REDIRECT = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# ✅ A05: Security Headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# ✅ A07: Session Security
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Strict'
+SESSION_COOKIE_AGE = 1800  # 30 minutes
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# ✅ A07: CSRF Protection
+CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Strict'
+
+# ✅ A03: Content Security Policy
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC = ("'self'",)
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
+CSP_IMG_SRC = ("'self'", 'data:', 'https:')
+```
+
+### Security Test Suite Template
+
+```python
+# File: tests/security/test_owasp_compliance.py
+@pytest.mark.security
+@pytest.mark.django_db
+class TestOWASPCompliance:
+    """OWASP Top 10 compliance tests"""
+
+    # A01: Broken Access Control
+    def test_idor_prevention(self):
+        """Cannot access other users' resources by ID"""
+        pass
+
+    # A03: Injection
+    def test_sql_injection_prevention(self):
+        """SQL injection attempts are blocked"""
+        pass
+
+    def test_xss_prevention(self):
+        """XSS payloads are sanitized"""
+        pass
+
+    # A05: Security Misconfiguration
+    def test_security_headers_present(self):
+        """All required security headers are set"""
+        response = self.client.get('/')
+        assert response['X-Content-Type-Options'] == 'nosniff'
+        assert response['X-Frame-Options'] == 'DENY'
+        assert 'Strict-Transport-Security' in response
+
+    # A07: Authentication Failures
+    def test_rate_limiting_enforced(self):
+        """Rate limiting prevents brute force"""
+        pass
+
+    def test_session_timeout_enforced(self):
+        """Sessions expire after timeout"""
+        pass
+
+    # A09: Security Logging
+    def test_security_events_logged(self):
+        """Security-relevant events are logged"""
+        pass
+```
+
+## 🔗 Specialist Agent Integration
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Security monitoring, audit dashboards, alerts |
+
 You are the guardian of Django application security. No Django security code exists until every attack vector has been tested and defeated. **Django and DRF security mastery is required.**
