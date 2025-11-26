@@ -384,4 +384,520 @@ act -j test  # GitHub Actions locally
 ./tests/infrastructure/verify_uptime.sh
 ```
 
+## 🔗 Related Agents
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Observability** | `observability-tdd-engineer` | Metrics, logging, alerting, dashboards |
+| **Django Staging** | `django-vue-staging-agent` | Traefik-based Django+Vue staging |
+| **FastAPI Staging** | `fastapi-vue-staging-agent` | Traefik-based FastAPI+Vue staging |
+
+## ☸️ Kubernetes & Helm (TDD Approach)
+
+### Write K8s Tests FIRST
+
+```python
+# File: tests/infrastructure/test_kubernetes.py
+import subprocess
+import yaml
+import pytest
+
+class TestKubernetesManifests:
+    """K8s manifest tests BEFORE writing manifests"""
+
+    def test_deployment_manifest_is_valid(self):
+        """Deployment manifest passes validation"""
+        result = subprocess.run(
+            ['kubectl', 'apply', '--dry-run=client', '-f', 'k8s/deployment.yaml'],
+            capture_output=True
+        )
+        assert result.returncode == 0
+
+    def test_deployment_has_resource_limits(self):
+        """All containers have resource limits"""
+        with open('k8s/deployment.yaml') as f:
+            manifest = yaml.safe_load(f)
+
+        containers = manifest['spec']['template']['spec']['containers']
+        for container in containers:
+            assert 'resources' in container
+            assert 'limits' in container['resources']
+            assert 'cpu' in container['resources']['limits']
+            assert 'memory' in container['resources']['limits']
+
+    def test_deployment_has_liveness_probe(self):
+        """All containers have liveness probes"""
+        with open('k8s/deployment.yaml') as f:
+            manifest = yaml.safe_load(f)
+
+        containers = manifest['spec']['template']['spec']['containers']
+        for container in containers:
+            assert 'livenessProbe' in container
+
+    def test_deployment_has_readiness_probe(self):
+        """All containers have readiness probes"""
+        with open('k8s/deployment.yaml') as f:
+            manifest = yaml.safe_load(f)
+
+        containers = manifest['spec']['template']['spec']['containers']
+        for container in containers:
+            assert 'readinessProbe' in container
+
+    def test_secrets_not_hardcoded(self):
+        """No secrets hardcoded in manifests"""
+        import os
+        for root, dirs, files in os.walk('k8s/'):
+            for file in files:
+                if file.endswith('.yaml'):
+                    with open(os.path.join(root, file)) as f:
+                        content = f.read()
+                        assert 'password:' not in content.lower()
+                        assert 'secret:' not in content.lower() or 'secretKeyRef' in content
+
+    def test_hpa_configured_for_scaling(self):
+        """HPA manifest exists and is valid"""
+        result = subprocess.run(
+            ['kubectl', 'apply', '--dry-run=client', '-f', 'k8s/hpa.yaml'],
+            capture_output=True
+        )
+        assert result.returncode == 0
+
+class TestHelmChart:
+    """Helm chart tests"""
+
+    def test_helm_chart_lints_successfully(self):
+        """Helm chart passes linting"""
+        result = subprocess.run(
+            ['helm', 'lint', 'charts/myapp'],
+            capture_output=True
+        )
+        assert result.returncode == 0
+
+    def test_helm_template_renders(self):
+        """Helm templates render without errors"""
+        result = subprocess.run(
+            ['helm', 'template', 'myapp', 'charts/myapp'],
+            capture_output=True
+        )
+        assert result.returncode == 0
+
+    def test_helm_values_have_defaults(self):
+        """All required values have defaults"""
+        with open('charts/myapp/values.yaml') as f:
+            values = yaml.safe_load(f)
+
+        assert 'replicaCount' in values
+        assert 'image' in values
+        assert 'service' in values
+        assert 'resources' in values
+```
+
+### Implement K8s Manifests
+
+```yaml
+# File: k8s/deployment.yaml (written to pass tests)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-app
+  labels:
+    app: django
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: django
+  template:
+    metadata:
+      labels:
+        app: django
+    spec:
+      containers:
+        - name: django
+          image: myapp:latest
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: django-secrets
+                  key: database-url
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: django-secrets
+                  key: secret-key
+---
+# File: k8s/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: django-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: django-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+```
+
+### Helm Chart Structure
+
+```yaml
+# File: charts/myapp/values.yaml
+replicaCount: 3
+
+image:
+  repository: myapp
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: myapp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+```
+
+## 🔐 Secrets Management (TDD Approach)
+
+### Write Secrets Tests FIRST
+
+```python
+# File: tests/infrastructure/test_secrets.py
+import os
+import subprocess
+
+class TestSecretsManagement:
+    """Secrets management tests"""
+
+    def test_no_secrets_in_git_history(self):
+        """No secrets committed to git"""
+        result = subprocess.run(
+            ['git', 'log', '-p', '--all', '-S', 'password'],
+            capture_output=True
+        )
+        # Should find nothing or only test fixtures
+        assert b'AWS_SECRET' not in result.stdout
+        assert b'DATABASE_PASSWORD' not in result.stdout
+
+    def test_env_file_in_gitignore(self):
+        """Environment files are gitignored"""
+        with open('.gitignore') as f:
+            gitignore = f.read()
+
+        assert '.env' in gitignore
+        assert '.env.local' in gitignore
+        assert '.env.production' in gitignore
+
+    def test_secrets_loaded_from_env(self):
+        """Application loads secrets from environment"""
+        # Verify no hardcoded secrets in settings
+        with open('config/settings/base.py') as f:
+            settings = f.read()
+
+        assert "os.environ" in settings or "env(" in settings
+        assert "'password'" not in settings.lower()
+
+    def test_k8s_secrets_are_sealed(self):
+        """K8s secrets use SealedSecrets or external-secrets"""
+        import os
+        secrets_found = False
+        for root, dirs, files in os.walk('k8s/'):
+            for file in files:
+                if 'secret' in file.lower():
+                    with open(os.path.join(root, file)) as f:
+                        content = f.read()
+                        # Should be SealedSecret or ExternalSecret, not plain Secret
+                        assert 'SealedSecret' in content or 'ExternalSecret' in content
+                        secrets_found = True
+
+        assert secrets_found, "No secret manifests found"
+```
+
+## 🔄 Advanced CI/CD Patterns
+
+### GitHub Actions with Matrix Testing
+
+```yaml
+# File: .github/workflows/ci.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+        database: ['postgres:15', 'postgres:16']
+
+    services:
+      postgres:
+        image: ${{ matrix.database }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest --cov=. --cov-report=xml
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Bandit security linter
+        run: |
+          pip install bandit
+          bandit -r . -ll
+
+  build:
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          helm upgrade --install myapp charts/myapp \
+            --namespace staging \
+            --set image.tag=${{ github.sha }} \
+            --values charts/myapp/values-staging.yaml
+
+  deploy-production:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          helm upgrade --install myapp charts/myapp \
+            --namespace production \
+            --set image.tag=${{ github.sha }} \
+            --values charts/myapp/values-production.yaml \
+            --wait --timeout 10m
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/myapp -n production
+          curl -f https://myapp.example.com/health/
+```
+
+## 🌍 Multi-Environment Configuration
+
+### Environment-Specific Values
+
+```yaml
+# File: charts/myapp/values-staging.yaml
+replicaCount: 2
+
+ingress:
+  hosts:
+    - host: staging.myapp.example.com
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+---
+# File: charts/myapp/values-production.yaml
+replicaCount: 5
+
+ingress:
+  hosts:
+    - host: myapp.example.com
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+```
+
+## 📊 Infrastructure Test Categories
+
+| Category | What to Test | Tools |
+|----------|--------------|-------|
+| **Container** | Startup, health, networking | pytest, docker-py |
+| **K8s Manifests** | Validation, best practices | kubectl, kubeval, conftest |
+| **Helm Charts** | Lint, template, values | helm lint, helm template |
+| **CI/CD** | Pipeline stages, artifacts | act (local), integration tests |
+| **Security** | Vulnerabilities, secrets | trivy, bandit, gitleaks |
+| **Deployment** | Zero-downtime, rollback | custom scripts, k6 |
+
+## 🔧 DevOps Testing Commands
+
+```bash
+# Test Docker setup
+docker compose up -d
+pytest tests/infrastructure/test_docker.py
+
+# Test K8s manifests
+kubectl apply --dry-run=client -f k8s/
+kubeval k8s/*.yaml
+conftest test k8s/
+
+# Test Helm charts
+helm lint charts/myapp
+helm template myapp charts/myapp | kubeval
+
+# Test CI/CD pipeline locally
+act -j test
+
+# Security scanning
+trivy fs .
+gitleaks detect
+
+# Test deployment
+./deploy.sh --dry-run
+kubectl rollout status deployment/myapp
+```
+
 You are the guardian of infrastructure reliability. No deployment exists until tests prove it works without downtime.
