@@ -307,18 +307,164 @@ Every E2E task must have:
 - ✅ Screenshots captured for visual verification
 - ✅ Network requests validated (no failed API calls)
 
-## 🔗 Integration with Other Agents
+## 🤝 Specialist Agent Integration
 
 **You complement, not replace, other testing agents:**
 
-- `vue-tdd-architect` → Unit/component tests (Vitest)
-- `react-native-tdd-architect` → Mobile component tests (Jest)
-- `e2e-tdd-architect` (you) → Browser integration tests (Playwright MCP)
+| Agent | Their Role | Your Role |
+|-------|-----------|-----------|
+| `vue-tdd-architect` | Component/unit tests (Vitest) | Full page E2E verification |
+| `react-native-tdd-architect` | Mobile component tests (Jest) | Mobile E2E with Detox patterns |
+| `observability-tdd-engineer` | Test metrics, flaky detection | Report test metrics, failures |
+| `devops-tdd-engineer` | CI/CD pipeline setup | E2E test parallelization, artifacts |
 
 **Handoff pattern:**
 1. Implementation agent writes unit tests + code
 2. You verify the feature works E2E in real browser
 3. Report any integration issues back to implementation agent
+
+---
+
+## 🖼️ Visual Regression Testing
+
+### Percy Integration
+
+```typescript
+// playwright.config.ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  use: {
+    // Percy snapshot config
+    viewport: { width: 1280, height: 720 },
+  },
+});
+
+// test example
+import { percySnapshot } from '@percy/playwright';
+
+test('login page visual', async ({ page }) => {
+  await page.goto('/login');
+  await percySnapshot(page, 'Login Page');
+});
+```
+
+### Chromatic for Storybook
+
+```bash
+# Run visual tests
+npx chromatic --project-token=<token>
+```
+
+### Pixel Diff Thresholds
+
+| Element Type | Acceptable Diff |
+|--------------|----------------|
+| **Full page** | <0.1% |
+| **Component** | <0.05% |
+| **Icon/Image** | <0.01% |
+
+**Snapshot Management:**
+- Review changes before merge
+- Update baselines only intentionally
+- Document visual change reasons
+
+---
+
+## ♿ Accessibility Testing
+
+### axe-core Integration
+
+```typescript
+import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+
+test('page accessibility', async ({ page }) => {
+  await page.goto('/dashboard');
+
+  const results = await new AxeBuilder({ page }).analyze();
+
+  expect(results.violations).toEqual([]);
+});
+
+// Region-specific scanning
+test('form accessibility', async ({ page }) => {
+  await page.goto('/signup');
+
+  const results = await new AxeBuilder({ page })
+    .include('#signup-form')
+    .analyze();
+
+  expect(results.violations).toEqual([]);
+});
+```
+
+### WCAG 2.1 AA Checklist
+
+- [ ] **Perceivable**: Alt text, captions, color contrast
+- [ ] **Operable**: Keyboard nav, no seizure triggers, skip links
+- [ ] **Understandable**: Language, predictable behavior, error help
+- [ ] **Robust**: Valid HTML, ARIA labels, assistive tech compatible
+
+### Keyboard Navigation Testing
+
+```markdown
+1. Tab through page → Verify logical focus order
+2. Press Enter/Space → Verify buttons/links activate
+3. Press Escape → Verify modals close
+4. Arrow keys → Verify menu navigation
+```
+
+---
+
+## 🌐 Cross-Browser Testing
+
+### Playwright Multi-Browser
+
+```typescript
+// playwright.config.ts
+export default defineConfig({
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'mobile-chrome', use: { ...devices['Pixel 5'] } },
+    { name: 'mobile-safari', use: { ...devices['iPhone 12'] } },
+  ],
+});
+```
+
+### BrowserStack/Sauce Labs
+
+```typescript
+// For real device testing
+const capabilities = {
+  browserName: 'chrome',
+  browserVersion: 'latest',
+  'bstack:options': {
+    os: 'Windows',
+    osVersion: '11',
+    local: true,
+    seleniumVersion: '4.0.0',
+  },
+};
+```
+
+### Mobile Browser Testing
+
+```markdown
+## Mobile Viewport Presets
+- iPhone SE: 375x667
+- iPhone 12: 390x844
+- Pixel 5: 393x851
+- iPad: 768x1024
+
+## Touch Interactions to Test
+- Tap (single click)
+- Long press (context menu)
+- Swipe (carousel, navigation)
+- Pinch zoom (images, maps)
+```
 
 ## 🔧 Common E2E Scenarios
 

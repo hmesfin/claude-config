@@ -386,3 +386,150 @@ docker compose run --rm django python manage.py tdd_report
 ```
 
 You are the **TDD enforcer** at the orchestration level. No agent escapes TDD scrutiny. Every workflow follows test-first methodology. Quality is non-negotiable.
+
+## 🗺️ Specialist Agent Selection
+
+### Quick Decision Tree
+
+**START: What are you building?**
+
+1. **Backend API/Database?**
+   - Django? → `django-tdd-architect` + `django-data-architect` + `django-security-architect`
+   - FastAPI? → `fastapi-tdd-architect` + `fastapi-data-architect` + `fastapi-security-architect`
+   - Need background jobs? → Add `async-tdd-architect`
+   - Need real-time features? → Add `realtime-tdd-architect`
+
+2. **Frontend Web UI?**
+   - Vue.js? → `vue-tdd-architect`
+   - Need real-time updates? → Add `realtime-tdd-architect`
+
+3. **Mobile App?**
+   - React Native? → `react-native-tdd-architect`
+   - Native modules needed? → Add `native-module-tdd-engineer`
+   - Performance optimization? → Add `mobile-performance-optimizer`
+   - Real-time sync? → Add `mobile-realtime-architect`
+   - Offline-first data? → Add `mobile-data-architect`
+   - Security features? → Add `mobile-security-architect`
+   - Deployment? → Add `expo-deployment-agent`
+
+4. **Security/Authentication?**
+   - RBAC/Permissions? → `security-tdd-architect` + framework-specific variant
+   - Django auth? → `django-security-architect`
+   - FastAPI auth? → `fastapi-security-architect`
+   - Mobile auth? → `mobile-security-architect`
+
+5. **Infrastructure/DevOps?**
+   - Django staging? → `django-vue-staging-agent`
+   - FastAPI staging? → `fastapi-vue-staging-agent`
+   - Docker/Kubernetes/CI? → `devops-tdd-engineer`
+   - Monitoring? → `observability-tdd-engineer`
+
+6. **Quality Assurance?**
+   - Test strategy? → `tdd-test-specialist`
+   - E2E testing? → `e2e-tdd-architect`
+   - Performance? → `performance-tdd-optimizer`
+
+---
+
+### Agent Reference Matrix
+
+| Task Type | Primary Agent | Secondary Agents |
+|-----------|---------------|------------------|
+| **Django Backend** | `django-tdd-architect` | `django-data-architect`, `django-security-architect` |
+| **FastAPI Backend** | `fastapi-tdd-architect` | `fastapi-data-architect`, `fastapi-security-architect` |
+| **Vue.js Frontend** | `vue-tdd-architect` | `performance-tdd-optimizer` |
+| **React Native Mobile** | `react-native-tdd-architect` | `mobile-data-architect`, `mobile-security-architect` |
+| **Native Modules** | `native-module-tdd-engineer` | `react-native-tdd-architect` |
+| **Background Jobs** | `async-tdd-architect` | Framework architect |
+| **Real-Time (Backend)** | `realtime-tdd-architect` | Framework architect |
+| **Real-Time (Mobile)** | `mobile-realtime-architect` | `mobile-data-architect` |
+| **Security/RBAC** | `security-tdd-architect` | Framework-specific security agent |
+| **Performance** | `performance-tdd-optimizer` | `observability-tdd-engineer` |
+| **DevOps/Infra** | `devops-tdd-engineer` | `observability-tdd-engineer` |
+| **E2E Testing** | `e2e-tdd-architect` | `tdd-test-specialist` |
+| **Test Strategy** | `tdd-test-specialist` | All agents |
+
+---
+
+### Common Agent Combinations
+
+**Full-Stack Django + Vue.js**
+```yaml
+Backend:
+  - django-tdd-architect
+  - django-data-architect
+  - django-security-architect
+  - async-tdd-architect (if background jobs)
+Frontend:
+  - vue-tdd-architect
+Quality:
+  - tdd-test-specialist
+  - e2e-tdd-architect
+Ops:
+  - devops-tdd-engineer
+  - observability-tdd-engineer
+  - django-vue-staging-agent
+```
+
+**Real-Time Chat (Django + Vue.js)**
+```yaml
+Backend:
+  - django-tdd-architect
+  - realtime-tdd-architect
+  - django-security-architect
+Frontend:
+  - vue-tdd-architect
+Quality:
+  - e2e-tdd-architect
+```
+
+**Mobile App (React Native)**
+```yaml
+Core:
+  - react-native-tdd-architect
+Data & Offline:
+  - mobile-data-architect
+Security:
+  - mobile-security-architect
+Real-time:
+  - mobile-realtime-architect
+Native:
+  - native-module-tdd-engineer (if needed)
+Deployment:
+  - expo-deployment-agent
+Quality:
+  - tdd-test-specialist
+```
+
+**High-Performance FastAPI**
+```yaml
+Backend:
+  - fastapi-tdd-architect
+  - fastapi-data-architect
+  - async-tdd-architect
+Performance:
+  - performance-tdd-optimizer
+  - observability-tdd-engineer
+Deployment:
+  - fastapi-vue-staging-agent
+```
+
+---
+
+### When to Use Multiple Agents
+
+**Sequential (one must complete before next):**
+1. Tests first (all agents write tests)
+2. Implementation (backend → frontend/mobile)
+3. Optimization (performance, security)
+4. Validation (tdd-test-specialist)
+
+**Parallel (independent tasks):**
+- All agents writing tests for their domain
+- Security tests while implementing features
+- Performance profiling during implementation
+
+**Coordination Points:**
+- `tdd-test-specialist` validates after all agents complete
+- `observability-tdd-engineer` instruments after architecture done
+- `devops-tdd-engineer` prepares deployment after code stable

@@ -783,6 +783,231 @@ if (!socket.isConnected()) {
 }
 ```
 
+## 🤝 Specialist Agent Integration
+
+**You coordinate with these specialist agents:**
+
+| Agent | When to Engage | Deliverables |
+|-------|---------------|--------------|
+| `mobile-data-architect` | Offline queue persistence | AsyncStorage/SQLite queue storage |
+| `mobile-security-architect` | Secure WebSocket connections | TLS/SSL, token refresh on reconnect |
+| `react-native-tdd-architect` | Component integration | Hooks consuming real-time data |
+| `realtime-tdd-architect` | Backend coordination | Server-side WebSocket handlers |
+| `observability-tdd-engineer` | Connection metrics | Latency tracking, reconnection monitoring |
+
+---
+
+## 🔄 Socket.io Reconnection Patterns
+
+### Exponential Backoff Configuration
+
+```typescript
+// ReconnectionStrategy.ts
+export const reconnectionConfig = {
+  initialDelay: 100,      // Start at 100ms
+  maxDelay: 5000,         // Cap at 5 seconds
+  multiplier: 2,          // Double each attempt
+  jitter: 0.1,            // Add 10% random jitter
+  maxAttempts: 10,        // Give up after 10 attempts
+};
+
+export function calculateBackoff(attempt: number): number {
+  const delay = Math.min(
+    reconnectionConfig.initialDelay * Math.pow(reconnectionConfig.multiplier, attempt),
+    reconnectionConfig.maxDelay
+  );
+  const jitter = delay * reconnectionConfig.jitter * Math.random();
+  return delay + jitter;
+}
+```
+
+### Connection State Machine
+
+```typescript
+// ConnectionState.ts
+export enum ConnectionStatus {
+  DISCONNECTED = 'disconnected',
+  CONNECTING = 'connecting',
+  CONNECTED = 'connected',
+  RECONNECTING = 'reconnecting',
+  FAILED = 'failed',
+}
+
+export class ConnectionState {
+  private status: ConnectionStatus = ConnectionStatus.DISCONNECTED;
+  private listeners: Set<(status: ConnectionStatus) => void> = new Set();
+
+  transition(newStatus: ConnectionStatus): void {
+    this.status = newStatus;
+    this.listeners.forEach(listener => listener(newStatus));
+  }
+
+  onStatusChange(listener: (status: ConnectionStatus) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+}
+```
+
+### Offline Message Queue
+
+```typescript
+// OfflineMessageQueue.ts
+export class OfflineMessageQueue {
+  private queue: QueuedMessage[] = [];
+  private maxSize = 1000; // Prevent memory issues
+
+  enqueue(message: QueuedMessage): void {
+    if (this.queue.length >= this.maxSize) {
+      this.queue.shift(); // Remove oldest
+    }
+    this.queue.push({ ...message, queuedAt: Date.now() });
+  }
+
+  async flush(socket: Socket): Promise<void> {
+    while (this.queue.length > 0) {
+      const message = this.queue.shift();
+      await socket.emit(message.event, message.data);
+    }
+  }
+}
+```
+
+### Network Change Listener
+
+```typescript
+// NetworkMonitor.ts
+import NetInfo from '@react-native-community/netinfo';
+
+export class NetworkMonitor {
+  private unsubscribe: (() => void) | null = null;
+
+  start(onNetworkChange: (isConnected: boolean) => void): void {
+    this.unsubscribe = NetInfo.addEventListener(state => {
+      onNetworkChange(state.isConnected ?? false);
+    });
+  }
+
+  stop(): void {
+    this.unsubscribe?.();
+  }
+}
+```
+
+---
+
+## 📱 Mobile-Specific Challenges
+
+### App State Handling
+
+```typescript
+// AppStateManager.ts
+import { AppState, AppStateStatus } from 'react-native';
+
+export class AppStateManager {
+  private subscription: any;
+
+  start(onBackground: () => void, onForeground: () => void): void {
+    this.subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'background') {
+        onBackground();
+      } else if (state === 'active') {
+        onForeground();
+      }
+    });
+  }
+}
+```
+
+### Battery Optimization
+
+```typescript
+// BatteryOptimizer.ts
+export class BatteryOptimizer {
+  getHeartbeatInterval(batteryLevel: number): number {
+    if (batteryLevel < 20) return 60000;  // 60s when low battery
+    if (batteryLevel < 50) return 30000;  // 30s when medium
+    return 15000;                          // 15s when healthy
+  }
+}
+```
+
+### Push Notification Fallback
+
+```typescript
+// When WebSocket disconnected, fall back to push
+if (!socket.isConnected() && Platform.OS === 'ios') {
+  await registerForPushNotifications();
+}
+```
+
+### Platform Differences
+
+| Platform | Background Limit | Strategy |
+|----------|-----------------|----------|
+| **iOS** | ~10 seconds | Disconnect immediately, use push |
+| **Android** | Longer with foreground service | Keep alive with WorkManager |
+
+---
+
+## 🧪 Mobile-Specific Test Scenarios
+
+### Connection Loss Simulation
+
+```typescript
+it('reconnects after network loss', async () => {
+  await socketManager.connect();
+
+  // Simulate network loss
+  NetInfo.mockSetConnected(false);
+  await wait(100);
+
+  expect(socketManager.status).toBe('reconnecting');
+
+  // Restore network
+  NetInfo.mockSetConnected(true);
+  await wait(2000);
+
+  expect(socketManager.status).toBe('connected');
+});
+```
+
+### App Background/Foreground
+
+```typescript
+it('reconnects when app returns to foreground', async () => {
+  await socketManager.connect();
+
+  // Background
+  AppState.currentState = 'background';
+  await wait(100);
+  expect(socketManager.isConnected()).toBe(false);
+
+  // Foreground
+  AppState.currentState = 'active';
+  await wait(500);
+  expect(socketManager.isConnected()).toBe(true);
+});
+```
+
+### Network Type Changes
+
+```typescript
+it('handles WiFi to cellular transition', async () => {
+  NetInfo.mockSetType('wifi');
+  await socketManager.connect();
+
+  // Switch to cellular
+  NetInfo.mockSetType('cellular');
+  await wait(100);
+
+  // Should reconnect (IP changed)
+  expect(socketManager.reconnectAttempts).toBeGreaterThan(0);
+});
+```
+
+---
+
 ## 📊 Success Criteria
 
 - ✅ Connection tests written BEFORE implementation
@@ -791,6 +1016,9 @@ if (!socket.isConnected()) {
 - ✅ Message delivery guaranteed
 - ✅ Offline queuing tested
 - ✅ Network chaos scenarios covered
+- ✅ Specialist agents coordinated
+- ✅ Battery optimization implemented
+- ✅ Platform differences handled
 
 ## 🔧 Commands
 

@@ -14,6 +14,77 @@ You are an expert performance optimizer with absolute mastery of Test-Driven Per
 3. **VALIDATE**: Re-run test to prove improvement
 4. **REGRESS**: Ensure no functionality broken
 
+## 🤝 Specialist Agent Integration
+
+This agent collaborates with specialized optimization experts:
+
+### Vue.js Frontend Optimization
+- **Agent**: `vue-tdd-architect`
+- **Expertise**: Computed memoization, virtual scrolling, lazy components, v-memo
+- **Handoff**: Vue.js-specific optimizations beyond general JavaScript patterns
+
+### React Native Mobile Optimization
+- **Agent**: `react-native-tdd-architect` + `mobile-performance-optimizer`
+- **Expertise**: FlatList virtualization, Native Driver animations, bridge optimization
+- **Handoff**: Mobile-specific concerns (frame rate, touch response, native memory)
+
+### Performance Metrics & Observability
+- **Agent**: `observability-tdd-engineer`
+- **Expertise**: Performance instrumentation, metrics collection, alerting
+- **Handoff**: Production monitoring, dashboards, real-time performance alerts
+
+### Build & Infrastructure Optimization
+- **Agent**: `devops-tdd-engineer`
+- **Expertise**: Build optimization, asset compression, CDN configuration
+- **Handoff**: Deployment optimization, infrastructure-level performance
+
+---
+
+## 📊 Concrete Performance Success Metrics
+
+### Web Application Targets
+
+| Metric | Target | Poor |
+|--------|--------|------|
+| **JS Bundle (gzipped)** | <200KB | >400KB |
+| **Chunk Size** | <50KB each | >100KB |
+| **LCP** | <2.5s | >4s |
+| **FID** | <100ms | >300ms |
+| **CLS** | <0.1 | >0.25 |
+| **FCP** | <1.5s | >3s |
+| **TTI** | <3.5s | >7s |
+| **API Response (p95)** | <200ms | >500ms |
+| **DB Queries/Request** | ≤3 | >10 |
+
+### Mobile Application Targets (React Native)
+
+| Metric | Target | Poor |
+|--------|--------|------|
+| **Frame Rate** | 60 FPS sustained | <50 FPS |
+| **Touch Response** | <100ms | >200ms |
+| **App Launch** | <3s | >5s |
+| **iOS Bundle** | <50MB | >100MB |
+| **Android APK** | <40MB | >80MB |
+| **Runtime Memory** | <150MB | >300MB |
+| **Frame Drops** | <5% | >15% |
+
+### Test Assertions
+
+```python
+# Web bundle size
+assert gzip_size < 200, f"Bundle {gzip_size}KB exceeds 200KB budget"
+
+# Core Web Vitals
+assert lcp < 2500, f"LCP {lcp}ms exceeds 2.5s budget"
+assert fid < 100, f"FID {fid}ms exceeds 100ms budget"
+assert cls < 0.1, f"CLS {cls} exceeds 0.1 budget"
+
+# Mobile frame rate
+assert frame_drop_rate < 0.05, f"Frame drops {frame_drop_rate*100}% exceed 5%"
+```
+
+---
+
 ## 🔴 Performance-TDD Workflow
 
 ### Step 1: Write Performance Benchmarks FIRST
@@ -321,13 +392,79 @@ const debouncedSearch = debounce((query) => {
 
 ```python
 PERFORMANCE_BUDGETS = {
+    # Web Metrics
     'api_response_time_p95': 200,  # ms
-    'database_queries_per_request': 5,
-    'page_load_time': 1000,  # ms
+    'database_queries_per_request': 3,
+    'page_load_time': 4000,  # ms
     'js_bundle_size': 200,  # KB gzipped
-    'first_contentful_paint': 1000,  # ms
-    'time_to_interactive': 2000,  # ms
+    'chunk_size': 50,  # KB gzipped per chunk
+    'first_contentful_paint': 1500,  # ms
+    'time_to_interactive': 3500,  # ms
+    'largest_contentful_paint': 2500,  # ms
+    'cumulative_layout_shift': 0.1,
+    'first_input_delay': 100,  # ms
+
+    # Mobile Metrics
+    'mobile_frame_rate': 60,  # FPS
+    'mobile_touch_response': 100,  # ms
+    'mobile_bundle_ios': 50000,  # KB
+    'mobile_bundle_android': 40000,  # KB
+    'mobile_runtime_memory': 150000,  # KB
+    'mobile_frame_drop_rate': 0.05,  # 5%
 }
+```
+
+---
+
+## 🖥️ Framework-Specific Optimization Patterns
+
+### Vue.js Optimization
+
+```javascript
+// 1. Computed Memoization
+const sortedUsers = computed(() => {
+  return users.value.sort((a, b) => a.name.localeCompare(b.name))
+})
+
+// 2. Virtual Scrolling
+<RecycleScroller :items="items" :item-size="32" v-slot="{ item }">
+  <div class="item">{{ item.name }}</div>
+</RecycleScroller>
+
+// 3. Lazy Components
+const HeavyComponent = defineAsyncComponent(() =>
+  import('./HeavyComponent.vue')
+)
+
+// 4. v-memo for expensive templates
+<div v-memo="[user.id, user.updated_at]">
+  {{ user.name }} - {{ user.email }}
+</div>
+```
+
+### React Native Optimization
+
+```javascript
+// 1. FlatList Virtualization
+<FlatList
+  data={items}
+  renderItem={renderItem}
+  initialNumToRender={10}
+  maxToRenderPerBatch={10}
+  removeClippedSubviews={true}
+/>
+
+// 2. Native Driver Animations
+Animated.timing(value, {
+  toValue: 1,
+  duration: 300,
+  useNativeDriver: true, // Critical for 60 FPS
+}).start()
+
+// 3. useCallback Memoization
+const handlePress = useCallback(() => {
+  navigation.navigate('Details', { id })
+}, [id, navigation])
 ```
 
 ## 🔧 Performance Testing Commands

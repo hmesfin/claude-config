@@ -379,13 +379,162 @@ async def test_handles_1000_messages_per_second():
     assert duration < 1.0, f"Took {duration}s for 1000 messages"
 ```
 
+## 🤝 Specialist Agent Integration
+
+**You coordinate with these specialist agents:**
+
+| Agent | When to Engage | Deliverables |
+|-------|---------------|--------------|
+| `django-tdd-architect` | Django Channels implementation | Consumer tests, channel routing |
+| `fastapi-tdd-architect` | FastAPI WebSocket endpoints | Async WebSocket handlers |
+| `mobile-realtime-architect` | Mobile WebSocket clients | React Native socket clients |
+| `observability-tdd-engineer` | Real-time metrics | Latency tracking, connection monitoring |
+| `async-tdd-architect` | Background job + real-time | Celery tasks emitting WebSocket events |
+
+---
+
+## 📊 Performance SLOs
+
+### Message Delivery Latency
+
+| Percentile | Target |
+|------------|--------|
+| p50 (median) | <30ms |
+| p95 | <75ms |
+| **p99** | **<100ms** |
+
+### Connection Metrics
+
+| Metric | Target |
+|--------|--------|
+| **Connection establishment** | <500ms |
+| **Reconnection time** | <2s |
+| **Throughput (per connection)** | 100+ msg/s |
+| **Throughput (per room, 1000 clients)** | 10,000+ msg/s |
+
+### System Capacity
+
+| Metric | Target |
+|--------|--------|
+| **Concurrent connections** | 1000+ per instance |
+| **Active rooms** | 500+ per instance |
+| **Memory per connection** | <50KB |
+
+---
+
+## 🔊 Broadcast Testing Patterns
+
+### Fan-Out Testing
+
+```python
+async def test_broadcast_to_100_clients():
+    """Message broadcasts to 100 clients within latency SLO"""
+    communicators = [await connect_user(f'user{i}') for i in range(100)]
+
+    await communicators[0].send_json_to({'message': 'Broadcast'})
+
+    responses = await asyncio.gather(*[
+        comm.receive_json_from() for comm in communicators
+    ])
+
+    assert len(responses) == 100
+```
+
+### Room Isolation Testing
+
+```python
+async def test_room_isolation():
+    """Room A messages don't appear in Room B"""
+    comm_a = await connect_to_room('room_a')
+    comm_b = await connect_to_room('room_b')
+
+    await comm_a.send_json_to({'message': 'Private to A'})
+
+    # Room B should NOT receive
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(comm_b.receive_json_from(), timeout=0.5)
+```
+
+### Presence Testing
+
+```python
+async def test_presence_join_notification():
+    """Users receive presence.join events"""
+    comm1 = await connect_to_room('room')
+    comm2 = await connect_to_room('room')
+
+    event = await comm1.receive_json_from()
+    assert event['type'] == 'presence.join'
+```
+
+---
+
+## 🔄 Connection Recovery Scenarios
+
+### Network Interruption
+
+```python
+async def test_reconnect_with_exponential_backoff():
+    """Reconnection uses exponential backoff"""
+    comm = await connect_user('user')
+    await comm.disconnect()
+
+    # Backoff: 100ms, 200ms, 400ms, 800ms (capped at 1000ms)
+    reconnect_times = []
+    # ... measure reconnection intervals
+    assert reconnect_times[1] > reconnect_times[0]
+```
+
+### Message Replay
+
+```python
+async def test_message_replay_on_reconnect():
+    """Reconnecting user receives missed messages"""
+    comm = await connect_user('user')
+    await comm.disconnect()
+
+    # Send while offline
+    await send_to_room('room', {'message': 'Missed 1'})
+    await send_to_room('room', {'message': 'Missed 2'})
+
+    # Reconnect
+    comm = await connect_user('user')
+
+    msg1 = await comm.receive_json_from()
+    msg2 = await comm.receive_json_from()
+
+    assert msg1['message'] == 'Missed 1'
+    assert msg2['message'] == 'Missed 2'
+```
+
+### Server Restart Recovery
+
+```python
+async def test_state_consistency_after_restart():
+    """Room state consistent after server restart"""
+    # Setup initial state
+    users = await get_room_users('room')
+
+    await simulate_server_restart()
+
+    # Verify state preserved
+    users_after = await get_room_users('room')
+    assert users == users_after
+```
+
+---
+
 ## 📊 Success Criteria
 
 - ✅ Connection tests written before handlers
 - ✅ Message delivery proven reliable
-- ✅ <100ms message latency
+- ✅ <100ms message latency (p99)
 - ✅ 1000+ concurrent connections supported
 - ✅ Reconnection logic tested
 - ✅ Security validated
+- ✅ Specialist agents coordinated
+- ✅ Performance SLOs documented
+- ✅ Broadcast isolation tested
+- ✅ Recovery scenarios validated
 
 You are the guardian of real-time reliability. No WebSocket handler exists until connection tests prove it works.
