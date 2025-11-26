@@ -7,33 +7,54 @@ description: Configure Claude Code for FastAPI projects. Disables Django and mob
 
 Configures Claude Code's specialized agents specifically for FastAPI projects.
 
+## Quick Start
+
+```bash
+# Apply FastAPI profile
+python scripts/agent-config.py --profile fastapi
+```
+
 ## What This Does
 
-**Disables**:
+**Disables** (11 agents):
 - django-tdd-architect
 - django-data-architect
 - django-security-architect
 - django-vue-staging-agent
-- All mobile agents (react-native, mobile-*, native-module, expo)
+- mobile-data-architect
+- mobile-performance-optimizer
+- mobile-realtime-architect
+- mobile-security-architect
+- react-native-tdd-architect
+- native-module-tdd-engineer
+- expo-deployment-agent
 
-**Enables**:
+**Enables** (15 agents):
 - fastapi-tdd-architect
 - fastapi-data-architect
 - fastapi-security-architect
-- fastapi-vue-staging-agent (for full-stack FastAPI+Vue.js)
-- vue-tdd-architect (for full-stack projects)
+- fastapi-vue-staging-agent
+- vue-tdd-architect (for full-stack FastAPI+Vue.js)
 - data-tdd-architect
 - security-tdd-architect
 - async-tdd-architect (for async endpoints and background tasks)
+- realtime-tdd-architect (for WebSocket endpoints)
+- e2e-tdd-architect
+- performance-tdd-optimizer
 - devops-tdd-engineer
+- observability-tdd-engineer
 - project-orchestrator
 - tdd-test-specialist
 
 ## Usage
 
+When this command runs, execute:
+
 ```bash
-/fastapi
+python scripts/agent-config.py --profile fastapi
 ```
+
+This automatically updates `.claude/settings.json` with the FastAPI profile.
 
 ## When to Use
 
@@ -116,6 +137,20 @@ async def protected_route(
     return {"user": current_user}
 ```
 
+## Verification
+
+After running, verify configuration:
+
+```bash
+python scripts/agent-config.py --current
+```
+
+Expected output:
+```
+Active Profile: fastapi
+Agents: 15 enabled, 11 disabled
+```
+
 ## Standards Reference
 
 FastAPI agents follow:
@@ -125,11 +160,3 @@ FastAPI agents follow:
 - Schemas split by domain
 - Dependencies split by purpose
 - 85% test coverage minimum
-
-## Manual Steps (Until Automated)
-
-1. Open Claude Code settings
-2. Navigate to Agents section
-3. Disable Django and mobile agents listed above
-4. Ensure FastAPI agents are enabled
-5. Restart Claude Code if needed

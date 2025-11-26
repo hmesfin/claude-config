@@ -7,9 +7,16 @@ description: Configure Claude Code for mobile development (React Native). Disabl
 
 Configures Claude Code's specialized agents for React Native mobile development.
 
+## Quick Start
+
+```bash
+# Apply mobile profile
+python scripts/agent-config.py --profile mobile
+```
+
 ## What This Does
 
-**Disables Backend Framework Agents**:
+**Disables Backend Framework Agents** (9 agents):
 - django-tdd-architect
 - django-data-architect
 - django-security-architect
@@ -20,7 +27,7 @@ Configures Claude Code's specialized agents for React Native mobile development.
 - fastapi-vue-staging-agent
 - vue-tdd-architect
 
-**Keeps Enabled**:
+**Keeps Enabled** (17 agents):
 - react-native-tdd-architect
 - mobile-data-architect
 - mobile-performance-optimizer
@@ -33,13 +40,21 @@ Configures Claude Code's specialized agents for React Native mobile development.
 - data-tdd-architect (for shared data patterns)
 - security-tdd-architect (for shared security patterns)
 - async-tdd-architect (for background tasks)
+- realtime-tdd-architect (for WebSocket patterns)
+- e2e-tdd-architect (for Detox testing)
+- performance-tdd-optimizer
 - devops-tdd-engineer (for deployment)
+- observability-tdd-engineer
 
 ## Usage
 
+When this command runs, execute:
+
 ```bash
-/mobile
+python scripts/agent-config.py --profile mobile
 ```
+
+This automatically updates `.claude/settings.json` with the mobile profile.
 
 ## When to Use
 
@@ -49,46 +64,107 @@ Use this command when:
 - Switching from backend development to mobile work
 - Building mobile apps with Expo or bare React Native
 
+## Mobile-Specific Agents
+
+### react-native-tdd-architect
+- Component development with React Native Testing Library
+- Navigation patterns (React Navigation)
+- State management (Redux Toolkit, Zustand)
+- Platform-specific code (.ios.tsx, .android.tsx)
+
+### mobile-data-architect
+- Offline-first data architecture
+- AsyncStorage, MMKV, WatermelonDB
+- React Query patterns
+- Sync strategies
+
+### mobile-security-architect
+- Biometric authentication
+- Secure storage (Keychain/Keystore)
+- JWT token management
+- Certificate pinning
+
+### mobile-performance-optimizer
+- App startup optimization
+- Frame rate monitoring (60 FPS target)
+- Memory management
+- Bundle size optimization (<50MB)
+
+### mobile-realtime-architect
+- Socket.io reconnection patterns
+- Mobile-specific challenges (battery, app state)
+- Background handling
+- Push notification integration
+
+### native-module-tdd-engineer
+- iOS Swift/Obj-C bridge code
+- Android Kotlin/Java bridge code
+- TurboModules
+- Third-party SDK integration
+
+### expo-deployment-agent
+- EAS Build configuration
+- OTA updates
+- App store submissions
+- Environment management
+
 ## Related Commands
 
 - `/backend` - Switch to backend development configuration
 - `/django` - Django-specific configuration
 - `/fastapi` - FastAPI-specific configuration
 
-## Implementation
+## Verification
 
-This command updates your agent configuration to optimize for mobile development. Backend framework agents (Django/FastAPI/Vue.js) are disabled to focus on React Native patterns.
+After running, verify configuration:
 
-**Note**: This is a configuration command. The actual agent enabling/disabling is managed through your Claude Code settings. Currently, you need to manually disable agents in settings. A future version may automate this.
+```bash
+python scripts/agent-config.py --current
+```
 
-## Manual Steps (Until Automated)
+Expected output:
+```
+Active Profile: mobile
+Agents: 17 enabled, 9 disabled
+```
 
-1. Open Claude Code settings
-2. Navigate to Agents section
-3. Disable the backend framework agents listed above
-4. Ensure mobile agents are enabled
-5. Restart Claude Code if needed
+## React Native Patterns
 
-## Future Enhancement
+### Feature-Based Module Structure
+```
+src/features/<feature>/
+├── components/
+├── hooks/
+├── screens/
+├── services/
+├── store/
+└── types/
+```
 
-A script could automate agent management by updating `.claude/settings.json`:
+### Platform-Specific Code
+```typescript
+// Component.ios.tsx - iOS-specific
+// Component.android.tsx - Android-specific
+// Component.tsx - Shared
+```
 
-```json
-{
-  "agents": {
-    "disabled": [
-      "django-tdd-architect",
-      "django-data-architect",
-      "django-security-architect",
-      "django-vue-staging-agent",
-      "fastapi-tdd-architect",
-      "fastapi-data-architect",
-      "fastapi-security-architect",
-      "fastapi-vue-staging-agent",
-      "vue-tdd-architect"
-    ]
-  }
-}
+### Offline-First Architecture
+```typescript
+// Always assume network unavailability
+const data = useQuery({
+  queryKey: ['items'],
+  queryFn: fetchItems,
+  staleTime: 5 * 60 * 1000,
+  cacheTime: 24 * 60 * 60 * 1000,
+});
+```
+
+## Reset to Full-Stack
+
+To re-enable all agents:
+
+```bash
+python scripts/agent-config.py --reset
 ```
 
 ## Standards Reference
@@ -98,3 +174,4 @@ All enabled agents follow standards defined in:
 - Mobile-specific file organization (feature-based modules in `src/features/`)
 - Offline-first data architecture
 - Platform-specific code patterns (.ios.tsx, .android.tsx)
+- 85% test coverage minimum (95% for security code)

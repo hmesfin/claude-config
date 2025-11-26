@@ -7,9 +7,16 @@ description: Configure Claude Code for backend development (Django/FastAPI). Dis
 
 Configures Claude Code's specialized agents for backend development.
 
+## Quick Start
+
+```bash
+# Apply backend profile
+python scripts/agent-config.py --profile backend
+```
+
 ## What This Does
 
-**Disables Mobile Agents**:
+**Disables Mobile Agents** (7 agents):
 - mobile-data-architect
 - mobile-performance-optimizer
 - mobile-realtime-architect
@@ -18,9 +25,11 @@ Configures Claude Code's specialized agents for backend development.
 - native-module-tdd-engineer
 - expo-deployment-agent
 
-**Keeps Enabled**:
+**Keeps Enabled** (19 agents):
 - django-tdd-architect
 - fastapi-tdd-architect
+- django-data-architect, fastapi-data-architect
+- django-security-architect, fastapi-security-architect
 - data-tdd-architect
 - security-tdd-architect
 - async-tdd-architect
@@ -28,11 +37,33 @@ Configures Claude Code's specialized agents for backend development.
 - project-orchestrator
 - tdd-test-specialist
 - vue-tdd-architect (for full-stack projects)
+- And more...
 
 ## Usage
 
+When this command runs, execute:
+
 ```bash
-/backend
+python scripts/agent-config.py --profile backend
+```
+
+This automatically updates `.claude/settings.json` with:
+
+```json
+{
+  "agents": {
+    "disabled": [
+      "mobile-data-architect",
+      "mobile-performance-optimizer",
+      "mobile-realtime-architect",
+      "mobile-security-architect",
+      "react-native-tdd-architect",
+      "native-module-tdd-engineer",
+      "expo-deployment-agent"
+    ],
+    "profile": "backend"
+  }
+}
 ```
 
 ## When to Use
@@ -46,41 +77,34 @@ Use this command when:
 ## Related Commands
 
 - `/mobile` - Switch to mobile development configuration
-- `/django` - Django-specific configuration
-- `/fastapi` - FastAPI-specific configuration
+- `/django` - Django-specific configuration (more restrictive)
+- `/fastapi` - FastAPI-specific configuration (more restrictive)
 
-## Implementation
+## Verification
 
-This command updates your agent configuration to optimize for backend development. Mobile-specific agents are disabled to reduce noise and improve Claude Code's focus on backend tasks.
+After running, verify configuration:
 
-**Note**: This is a configuration command. The actual agent enabling/disabling is managed through your Claude Code settings. Currently, you need to manually disable agents in settings. A future version may automate this.
+```bash
+python scripts/agent-config.py --current
+```
 
-## Manual Steps (Until Automated)
+Expected output:
+```
+Active Profile: backend
+Agents: 19 enabled, 7 disabled
 
-1. Open Claude Code settings
-2. Navigate to Agents section
-3. Disable the mobile agents listed above
-4. Ensure backend agents are enabled
-5. Restart Claude Code if needed
+Disabled Agents (7):
+  - mobile-data-architect
+  - mobile-performance-optimizer
+  ...
+```
 
-## Future Enhancement
+## Reset to Full-Stack
 
-A script could automate agent management by updating `.claude/settings.json`:
+To re-enable all agents:
 
-```json
-{
-  "agents": {
-    "disabled": [
-      "mobile-data-architect",
-      "mobile-performance-optimizer",
-      "mobile-realtime-architect",
-      "mobile-security-architect",
-      "react-native-tdd-architect",
-      "native-module-tdd-engineer",
-      "expo-deployment-agent"
-    ]
-  }
-}
+```bash
+python scripts/agent-config.py --reset
 ```
 
 ## Standards Reference

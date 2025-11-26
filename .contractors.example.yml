@@ -1,13 +1,45 @@
 # Contractor Assignment Intelligence - Profile Configuration
-# Copy this file to .contractors.yml and customize for your team
+# ===========================================================
+# Copy this file to .contractors.yml and customize for your team.
+#
+# Usage:
+#   cp ~/.claude-config/.contractors.example.yml ./.contractors.yml
+#   # Edit with your team's information
+#   /assign-contractor
+#
+# Version: 1.1.0 (updated for enhanced scoring algorithm)
 
-version: "1.0"
+version: "1.1"
 
+# Team Configuration
+team:
+  name: "Your Team Name"
+  total_capacity: 4.5  # Total issues/week across all contractors
+
+  # Workload balancing strategy
+  balancing_strategy: "optimal"  # Options: "optimal", "equal", "velocity-based"
+
+  # Priority weights for assignment algorithm (must sum to 1.0)
+  weights:
+    skill_match: 0.40      # How well skills match issue requirements
+    availability: 0.25     # Current workload vs capacity
+    velocity: 0.20         # Historical velocity and performance
+    specialty_match: 0.15  # Issue matches contractor's specialty
+
+  # Auto-assignment rules
+  auto_assign:
+    enabled: false           # Set to true to auto-assign via GitHub
+    require_approval: true   # Post suggestion as comment vs auto-assign
+    min_score_threshold: 70  # Only suggest if match score >= 70%
+
+# Contractor Profiles
 contractors:
-  # Example Contractor A - Backend Specialist
+
+  # Example: Backend Developer
   contractor_a:
     name: "Alex Chen"
     github_username: "alexchen"  # For auto-assignment
+    email: "alex@example.com"
 
     skills:
       # Backend
@@ -29,30 +61,33 @@ contractors:
     specialty: "backend"  # Primary focus area
 
     velocity:
-      issues_per_week: 1.5  # Average completion rate
-      avg_pr_size: 450      # Average lines changed per PR
-      avg_time_to_complete: 5  # Days per issue
+      issues_per_week: 1.5        # Average completion rate
+      avg_pr_size: 450            # Average lines changed per PR
+      avg_time_to_complete: 5     # Days per issue
+      review_iterations: 2.3      # Average PR revision rounds
 
     availability:
       hours_per_week: 20
-      timezone: "PST"
+      timezone: "America/Los_Angeles"
       preferred_days: ["Monday", "Tuesday", "Wednesday"]
+      unavailable_dates: []       # ISO format: ["2025-12-25"]
 
     preferences:
       max_concurrent_issues: 2
-      prefers_backend: true
       prefers_complex: true
-      avoid_labels: ["mobile", "ui"]  # Skills they prefer not to work on
+      prefers_simple: false
+      avoid_labels: ["mobile", "ui", "css"]  # Skills they prefer not to work on
 
     performance:
-      quality_score: 9.5    # Out of 10 (code review feedback)
-      reliability_score: 9.0  # Out of 10 (deadline adherence)
-      communication_score: 8.5  # Out of 10 (responsiveness)
+      quality_score: 9.5         # Out of 10 (code review feedback)
+      reliability_score: 9.0     # Out of 10 (deadline adherence)
+      communication_score: 8.5   # Out of 10 (responsiveness)
 
-  # Example Contractor B - Full-Stack with Mobile Focus
+  # Example: Full-Stack with Mobile Focus
   contractor_b:
     name: "Maria Rodriguez"
     github_username: "mariarodriguez"
+    email: "maria@example.com"
 
     skills:
       # Mobile
@@ -83,15 +118,17 @@ contractors:
       issues_per_week: 2.0
       avg_pr_size: 300
       avg_time_to_complete: 3
+      review_iterations: 1.8
 
     availability:
       hours_per_week: 30
-      timezone: "EST"
+      timezone: "America/New_York"
       preferred_days: ["Tuesday", "Wednesday", "Thursday", "Friday"]
+      unavailable_dates: []
 
     preferences:
       max_concurrent_issues: 3
-      prefers_mobile: true
+      prefers_complex: false
       prefers_simple: true  # Prefers well-defined, straightforward work
       avoid_labels: ["architecture", "security", "complex"]
 
@@ -100,10 +137,11 @@ contractors:
       reliability_score: 9.5
       communication_score: 9.0
 
-  # Example Contractor C - Security & Architecture Specialist
+  # Example: Security & Architecture Specialist
   contractor_c:
     name: "Jordan Kim"
     github_username: "jordankim"
+    email: "jordan@example.com"
 
     skills:
       # Security
@@ -113,6 +151,7 @@ contractors:
       - rbac
       - oauth
       - jwt
+      - audit
 
       # Architecture
       - architecture
@@ -129,49 +168,81 @@ contractors:
     specialty: "security"
 
     velocity:
-      issues_per_week: 1.0  # Lower velocity but high complexity
+      issues_per_week: 1.0       # Lower velocity but high complexity
       avg_pr_size: 600
       avg_time_to_complete: 7
+      review_iterations: 1.5     # High quality first time
 
     availability:
       hours_per_week: 15
-      timezone: "UTC"
+      timezone: "Europe/London"
       preferred_days: ["Monday", "Friday"]
+      unavailable_dates: []
 
     preferences:
-      max_concurrent_issues: 1  # Prefers to focus on one complex task
+      max_concurrent_issues: 1   # Prefers to focus on one complex task
       prefers_complex: true
-      prefers_security: true
-      avoid_labels: ["simple", "crud", "ui-only"]
+      prefers_simple: false
+      avoid_labels: ["simple", "crud", "ui-only", "css"]
 
     performance:
-      quality_score: 10.0  # Exceptional quality
-      reliability_score: 8.0  # Slower but thorough
+      quality_score: 10.0        # Exceptional quality
+      reliability_score: 8.0     # Slower but thorough
       communication_score: 7.5
 
-# Team Configuration
-team:
-  total_capacity: 4.5  # Total issues/week across all contractors
+# Label to Skill Mapping
+# Maps GitHub issue labels to skills for matching
+label_skill_mapping:
+  # Backend labels
+  backend: ["python", "django", "fastapi", "backend"]
+  api: ["python", "django", "fastapi", "rest-api"]
+  database: ["postgresql", "database"]
+  async: ["celery", "async"]
+  websocket: ["websockets", "real-time"]
 
-  # Workload balancing strategy
-  balancing_strategy: "optimal"  # Options: "optimal", "equal", "velocity-based"
+  # Frontend labels
+  frontend: ["vue", "typescript", "tailwind", "frontend"]
+  ui: ["vue", "typescript", "ui", "ux"]
+  component: ["vue", "typescript", "react"]
 
-  # Priority weights for assignment algorithm
-  weights:
-    skill_match: 0.40      # 40% - How well skills match issue requirements
-    availability: 0.25     # 25% - Current workload and capacity
-    velocity: 0.20         # 20% - Historical velocity and performance
-    specialty_match: 0.15  # 15% - Issue matches contractor's specialty
+  # Mobile labels
+  mobile: ["react-native", "mobile", "expo"]
+  ios: ["react-native", "ios", "mobile"]
+  android: ["react-native", "android", "mobile"]
 
-  # Auto-assignment rules
-  auto_assign:
-    enabled: false  # Set to true to auto-assign via GitHub
-    require_approval: true  # Post suggestion as comment vs auto-assign
-    min_score_threshold: 70  # Only suggest if match score >= 70%
+  # Cross-cutting labels
+  security: ["security", "authentication", "authorization", "rbac"]
+  performance: ["performance", "optimization"]
+  testing: ["testing", "pytest", "vitest", "playwright"]
+  devops: ["docker", "devops", "ci-cd"]
 
-# Historical Performance Tracking (optional - auto-updated)
+# Complexity indicators (used by scoring algorithm)
+complexity_labels:
+  simple:
+    - crud
+    - simple
+    - ui-only
+    - docs
+    - documentation
+    - standard
+
+  complex:
+    - complex
+    - architecture
+    - security
+    - performance
+    - migration
+    - breaking-change
+
+# Priority labels (for urgency weighting)
+priority_labels:
+  p0: ["P0", "critical", "urgent", "blocker"]
+  p1: ["P1", "high", "important"]
+  p2: ["P2", "medium", "normal"]
+  p3: ["P3", "low", "nice-to-have"]
+
+# Historical Performance Tracking (auto-updated by /assign-contractor)
 history:
-  # Tracked automatically when issues close
   contractor_a:
     total_issues_completed: 12
     total_prs_merged: 15
@@ -193,15 +264,28 @@ history:
   contractor_c:
     total_issues_completed: 8
     total_prs_merged: 10
-    avg_review_iterations: 3.5
+    avg_review_iterations: 1.5
     issue_types:
       security: 6
       architecture: 4
       complex: 8
 
 # Notes:
-# - Copy this to .contractors.yml in your project root
-# - Update contractor details to match your team
-# - Skills should match your issue labels for best matching
-# - Velocity metrics can be tracked over time
-# - Performance scores help with assignment quality
+# =====
+# 1. Copy this to .contractors.yml in your project root
+# 2. Update contractor details to match your team
+# 3. Skills should match your issue labels for best matching
+# 4. Update velocity metrics monthly based on actual performance
+# 5. Performance scores help optimize assignment quality
+# 6. The history section is auto-updated when issues close
+#
+# Scoring Algorithm:
+# =================
+# For each (issue, contractor) pair:
+#   skill_score     = (matched_skills / total_required) * 100
+#   availability    = (free_slots / max_slots) * 100
+#   velocity_score  = normalized based on issue complexity
+#   specialty_bonus = +20 if specialty matches issue domain
+#   avoid_penalty   = -30 if issue has avoided labels
+#
+# Final Score = weighted_sum * (performance_score / 100)
