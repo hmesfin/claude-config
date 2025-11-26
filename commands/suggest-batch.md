@@ -6,6 +6,49 @@ description: "AI-powered batch suggestions for optimal parallel work and maximum
 
 Analyzes your project's dependency graph and suggests optimal batches of parallel work to maximize velocity.
 
+## Quick Start
+
+```bash
+# Generate batch suggestions
+python scripts/suggest_batch.py
+
+# Output as JSON
+python scripts/suggest_batch.py --json
+
+# Custom batch size
+python scripts/suggest_batch.py --capacity 5
+
+# Show only Copilot-friendly issues
+python scripts/suggest_batch.py --copilot-only
+
+# Specify repository
+python scripts/suggest_batch.py --repo owner/repo
+```
+
+## Implementation
+
+**Script**: `scripts/suggest_batch.py` (with `scripts/pm_utils.py` utilities)
+
+The implementation parses dependency markers and builds a graph to identify:
+- Ready issues (no open blockers)
+- Critical path (high unlocking power)
+- Parallel-safe groups (different domains)
+- Copilot-friendly vs complex issues
+
+## Dependency Markers
+
+The script recognizes these patterns in issue bodies:
+
+```
+UNLOCKS: #15, #16, #17
+BLOCKS: #20
+ENABLES: #21
+DEPENDS ON: #10, #11
+BLOCKED BY: #5
+REQUIRES: #8
+WAITING ON: #9
+```
+
 ## Instructions
 
 1. **Detect Repository**:

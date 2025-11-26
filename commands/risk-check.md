@@ -6,6 +6,51 @@ description: "Monitor and alert on high-risk issues that need attention"
 
 Proactively identify and alert on issues that are at risk of causing delays or problems.
 
+## Quick Start
+
+```bash
+# Generate risk report
+python scripts/risk_check.py
+
+# Output as JSON
+python scripts/risk_check.py --json
+
+# Show only critical issues
+python scripts/risk_check.py --critical-only
+
+# Post warning comments to critical issues
+python scripts/risk_check.py --post-alerts
+
+# Specify repository
+python scripts/risk_check.py --repo owner/repo
+```
+
+## Implementation
+
+**Script**: `scripts/risk_check.py` (with `scripts/pm_utils.py` utilities)
+
+The implementation uses GitHub CLI (`gh`) to fetch issues and calculate risk scores.
+
+## Risk Scoring Algorithm
+
+```python
+# Each factor contributes points (max 130, normalized to 0-100)
+RISK_WEIGHTS = {
+    "days_open": 30,      # Max points for being open too long
+    "risk_marker": 30,    # Points for explicit RISK: marker
+    "stale": 20,          # Max points for no recent updates
+    "no_comments": 15,    # Points for no engagement
+    "deadline": 20,       # Max points for approaching deadline
+    "blocked": 15,        # Points for being blocked
+}
+
+# Risk levels
+CRITICAL: score >= 70
+HIGH:     score >= 50
+MEDIUM:   score >= 30
+LOW:      score < 30
+```
+
 ## Instructions
 
 1. **Detect Repository**:

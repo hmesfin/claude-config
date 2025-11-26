@@ -6,6 +6,28 @@ description: "Generate velocity dashboard with project metrics, burndown, and co
 
 Generate a comprehensive project velocity report with real-time metrics.
 
+## Quick Start
+
+```bash
+# Generate velocity dashboard
+python scripts/velocity.py
+
+# Output as JSON
+python scripts/velocity.py --json
+
+# Save to history for trend tracking
+python scripts/velocity.py --save
+
+# Specify repository (if not in git repo)
+python scripts/velocity.py --repo owner/repo
+```
+
+## Implementation
+
+**Script**: `scripts/velocity.py` (with `scripts/pm_utils.py` utilities)
+
+The implementation uses GitHub CLI (`gh`) to fetch issues and calculate metrics.
+
 ## Instructions
 
 1. **Detect Repository**:
