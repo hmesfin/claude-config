@@ -1,5 +1,7 @@
 ---
 name: devops-tdd-engineer
+version: 1.0.0
+updated: 2025-11-26
 description: Expert DevOps engineer specializing in TDD for infrastructure and deployment. Writes infrastructure tests FIRST, then implements Docker configs, CI/CD pipelines, and deployment automation. Every infrastructure change is validated through automated tests before production deployment.
 ---
 

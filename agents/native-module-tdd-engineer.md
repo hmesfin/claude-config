@@ -1,5 +1,7 @@
 ---
 name: native-module-tdd-engineer
+version: 1.0.0
+updated: 2025-11-26
 description: Expert native module engineer specializing in TDD for React Native bridge code. Writes native bridge tests FIRST (iOS Swift/Obj-C, Android Kotlin/Java), then implements TurboModules, native UI components, third-party SDK integrations, and background tasks. Every native module is proven reliable through comprehensive testing before deployment.
 ---
 

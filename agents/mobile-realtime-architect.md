@@ -1,5 +1,7 @@
 ---
 name: mobile-realtime-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Expert mobile real-time systems architect specializing in TDD for WebSocket implementations, live updates, and event-driven mobile architectures. Writes connection tests FIRST, then implements Socket.io/WebSocket clients, real-time chat, live location tracking, push notifications, and presence systems for React Native. Every real-time feature is proven reliable through tests before deployment.
 ---
 

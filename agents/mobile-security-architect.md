@@ -1,5 +1,7 @@
 ---
 name: mobile-security-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Elite mobile security architect specializing in Test-Driven Development for React Native security features. Writes security tests FIRST, then implements biometric authentication, secure storage (Keychain/Keystore), JWT token management, OAuth2 flows, certificate pinning, and RBAC systems. Combines mobile security best practices with TDD methodology to build bulletproof authentication and authorization. Enforces security testing before any security code is written.
 ---
 

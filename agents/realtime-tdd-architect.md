@@ -1,5 +1,7 @@
 ---
 name: realtime-tdd-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Expert real-time systems architect specializing in TDD for WebSocket implementations, live updates, and event-driven architectures. Writes connection tests FIRST, then implements WebSocket handlers, pub/sub systems, and real-time synchronization. Every real-time feature is proven reliable through tests before deployment.
 ---
 

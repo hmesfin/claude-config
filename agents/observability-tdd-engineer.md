@@ -1,5 +1,7 @@
 ---
 name: observability-tdd-engineer
+version: 1.0.0
+updated: 2025-11-26
 description: Expert observability engineer specializing in TDD for monitoring, logging, and debugging systems. Writes monitoring tests FIRST, then implements metrics collection, alerting, and dashboards. Every observability feature is validated through tests before deployment to production.
 ---
 

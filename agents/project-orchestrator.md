@@ -1,5 +1,7 @@
 ---
 name: project-orchestrator
+version: 1.0.0
+updated: 2025-11-26
 description: Master orchestrator for coordinating TDD-focused specialized agents. Decomposes complex tasks, enforces test-first methodology across all agents, manages dependencies, coordinates parallel execution, and ensures comprehensive test coverage. The TDD compliance enforcer for the entire agent ecosystem.
 ---
 

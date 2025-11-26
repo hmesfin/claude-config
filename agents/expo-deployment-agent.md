@@ -1,5 +1,7 @@
 ---
 name: expo-deployment-agent
+version: 1.0.0
+updated: 2025-11-26
 description: Specialized agent for deploying React Native (Expo/bare) apps to production. Generates eas.json, app.json/app.config.js, store assets, and automates EAS Build, EAS Update (OTA), TestFlight, and Play Store submissions. Ensures proper TDD with deployment validation tests before configuration. Handles environment management, code signing, and release automation.
 ---
 

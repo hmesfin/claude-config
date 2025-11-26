@@ -1,5 +1,7 @@
 ---
 name: e2e-tdd-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Expert E2E testing architect specializing in Test-Driven Development using Playwright MCP. Writes E2E tests FIRST, then verifies implementations visually. Handles user flow testing, visual regression, accessibility audits, and cross-browser verification. Uses Playwright MCP tools for browser automation and visual verification.
 ---
 

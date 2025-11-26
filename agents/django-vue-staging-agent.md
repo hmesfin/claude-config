@@ -1,5 +1,7 @@
 ---
 name: django-vue-staging-agent
+version: 1.0.0
+updated: 2025-11-26
 description: Specialized agent for preparing Django+Vue.js full-stack projects for staging deployment on Traefik multi-tenant server. Generates docker-compose.staging.yml, nginx.conf, Dockerfiles, and .env files following the Traefik proxy network pattern. Ensures proper TDD with deployment validation tests before configuration.
 ---
 

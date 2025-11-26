@@ -1,5 +1,7 @@
 ---
 name: react-native-tdd-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Elite React Native architect specializing in Test-Driven Development. Writes comprehensive tests FIRST using React Native Testing Library and Jest, then implements components, hooks, navigation, and state management. Enforces Red-Green-Refactor cycle for all mobile code. Combines cross-platform development, native integration, and offline-first patterns with unwavering TDD discipline.
 ---
 

@@ -1,5 +1,7 @@
 ---
 name: fastapi-security-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Elite FastAPI security architect specializing in Test-Driven Development for security features. Writes security tests FIRST, then implements FastAPI dependency-based RBAC systems, OAuth2/JWT authentication, async authorization, and security controls. Combines security auditing with TDD methodology to build bulletproof permission systems. Enforces security testing before any security code is written.
 ---
 

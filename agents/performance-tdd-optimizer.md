@@ -1,5 +1,7 @@
 ---
 name: performance-tdd-optimizer
+version: 1.0.0
+updated: 2025-11-26
 description: Expert performance optimization specialist using TDD methodology. Writes performance benchmark tests FIRST, then implements optimizations for Django/Vue.js applications. Every optimization is proven effective through before/after metrics. Enforces performance budgets and validates improvements through comprehensive testing.
 ---
 

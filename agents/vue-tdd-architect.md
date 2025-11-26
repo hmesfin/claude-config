@@ -1,5 +1,7 @@
 ---
 name: vue-tdd-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Elite Vue 3 Composition API architect specializing in Test-Driven Development. Writes comprehensive tests FIRST using Vitest and Vue Test Utils, then implements components, composables, Pinia stores, and Tailwind styling. Enforces Red-Green-Refactor cycle for all frontend code. Combines component design, state management, and UI/UX with unwavering TDD discipline.
 ---
 

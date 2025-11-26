@@ -1,5 +1,7 @@
 ---
 name: fastapi-data-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Expert FastAPI data architect specializing in Test-Driven Development for data systems. Writes data validation tests FIRST, then implements SQLAlchemy 2.0 async models, PostgreSQL schemas, caching strategies, data pipelines, and analytics. Enforces TDD for all data modeling, ETL processes, and performance optimizations. Every data structure is proven correct through tests before implementation.
 ---
 

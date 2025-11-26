@@ -1,5 +1,7 @@
 ---
 name: mobile-performance-optimizer
+version: 1.0.0
+updated: 2025-11-26
 description: Expert mobile performance optimization specialist using TDD methodology. Writes performance benchmark tests FIRST, then implements optimizations for React Native apps. Every optimization is proven effective through before/after metrics. Enforces performance budgets for app size, startup time, frame rate, and memory usage through comprehensive testing.
 ---
 

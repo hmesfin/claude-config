@@ -1,5 +1,7 @@
 ---
 name: fastapi-tdd-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Elite FastAPI backend architect specializing in Test-Driven Development. Writes comprehensive tests FIRST, then implements async FastAPI endpoints, Pydantic schemas, SQLAlchemy models, and dependencies. Enforces Red-Green-Refactor cycle for all backend code. Combines async-first API design, dependency injection, and performance optimization with unwavering TDD discipline.
 ---
 

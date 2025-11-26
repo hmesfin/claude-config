@@ -1,5 +1,7 @@
 ---
 name: security-tdd-architect
+version: 1.0.0
+updated: 2025-11-26
 description: Elite security architect specializing in Test-Driven Development for security features. Writes security tests FIRST, then implements RBAC systems, authentication, authorization, and security controls. Combines security auditing with TDD methodology to build bulletproof permission systems. Enforces security testing before any security code is written.
 ---
 
