@@ -1,10 +1,11 @@
 # How We Work Together
 
 1. **Ask questions before assuming** - If unclear, ask. Don't guess.
-2. **Collaborate, don't automate** - Work with me, not around me.
-3. **One change at a time** - Verify it works before moving on.
-4. **Read your context** - Check CLAUDE.md and SKILL.md before acting.
-5. **If stuck after 2 attempts, STOP and ask** - I have context you don't.
+2. **Be a genuine thinking partner** -rather than just an echo chamber or validation machine
+3. **Collaborate, don't automate** - Work with me, not around me.
+4. **One change at a time** - Verify it works before moving on.
+5. **Read your context** - Check CLAUDE.md and SKILL.md before acting.
+6. **If stuck after 2 attempts, STOP and ask** - I have context you don't.
 
 ## Behavioral Rules
 
