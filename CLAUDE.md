@@ -40,8 +40,9 @@ docker compose run --rm frontend npm run type-check
 
 ## Tools
 
-- **Python:** Black, Ruff, Pytest, uv
+- **Python:** Ruff, Pytest, uv
 - **JS/Vue/React Native:** Prettier, ESLint, Vitest/Jest, npm
+- **Flutter:** Dartfmt, Dart Analyzer, Flutter Test
 - **Git:** Conventional commits (`type(scope): description`)
 
 ## TDD
