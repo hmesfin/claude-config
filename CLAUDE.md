@@ -30,7 +30,10 @@ Applies to anything that leaves our workspace — bug reports, issues, PR descri
 - File on a reproduction, not a conviction. Before reporting a bug, confirm it with a concrete, minimal repro I could hand a stranger. Can't reproduce it? Say so and don't file.
 - Separate confirmed from suspected. State observations as fact; state mechanism as inference, and only once it's isolated. Don't assert a root cause we haven't nailed down.
 - Plain human voice, not model voice. Short sentences. No em-dash pile-ups, no rule-of-three cadence, no "Notably / It's worth noting," minimal bolding, no grandiose closers. Terse and specific reads as competent; polished-and-hedged reads as AI.
-- Draft → show me → file. Never post outward-facing content without my sign-off.
+
+**Sign-off gate — projects I don't own.** For upstream issues, third-party PRs, and comments on repos outside `hmesfin/*`: draft → show me → file. Never post without my sign-off.
+
+On my own repos, file directly. The PR and issue templates carry the rules above — fill them honestly instead of asking me to approve.
 
 ## Keep Me Learning
 
