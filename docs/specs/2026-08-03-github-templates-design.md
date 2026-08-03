@@ -96,11 +96,19 @@ without my sign-off.
 
 On my own repos, file directly. The PR and issue templates carry the rules
 above - fill them honestly instead of asking me to approve.
+
+The `Verified` section of a PR is bound by the No AI Slop rules. Write only
+what was actually run or checked. "Not tested" and "untested beyond type
+check" are acceptable values; a claim that something passed when it was not
+run is the failure this whole arrangement is built to prevent.
 ```
 
 Rationale for keeping bullets 1-3 global: they are the `No AI Slop` rules
 applied to writing. They cost nothing on owned repos and most writing lands
 there. Only the fourth bullet created the friction.
+
+The final paragraph is Level 1 of section 7 and is part of this change, not a
+later addition.
 
 ### 2. Source of truth
 
@@ -143,6 +151,8 @@ every PR, which is the substitute for the sign-off gate.
 
 Rejected: a checklist variant (tests written, lint clean, migrations reviewed).
 On solo repos checkboxes get ticked reflexively and stop carrying information.
+
+See section 7 for the limits of what this field can guarantee.
 
 ### 4. Issue forms
 
@@ -201,6 +211,72 @@ only the pre-commit stage, the config looks correct, `pre-commit run
 Rollout is one repo at a time. Each repo is verified with a real rejected
 commit and a real accepted commit before moving to the next.
 
+### 7. The `Verified` field cannot enforce itself
+
+The design leans on the `Verified` field to replace the sign-off gate. That
+substitution has a hole, and it is recorded here rather than left implicit.
+
+A PR template is a prompt, not a validator. GitHub's issue forms can require a
+repro field because the form is submitted through GitHub's own validator. There
+is no equivalent for PR bodies. Nothing stops `Verified: ran the tests` from
+being written by an agent that did not run the tests.
+
+This matters more than a normal template gap. If the field reads as diligence
+without being diligence, it is worse than the gate it replaced, because the
+gate at least put a human in the path.
+
+Three levels of response, in increasing strength and cost:
+
+**Level 1 - tie it to the existing rigor rules.** Add a line to CLAUDE.md
+stating that `Verified` in a PR body is bound by the `No AI Slop` rules:
+unverified claims must be labelled as such, and `not tested` is an acceptable
+value. Zero infrastructure. Enforces nothing mechanically; relies on the same
+rules that govern every other claim.
+
+**Level 2 - CI presence check.** A workflow fails the PR when the `Verified`
+section is empty or still contains the unedited placeholder comment.
+Centralized as a reusable workflow in `hmesfin/.github`, called by a small stub
+in each repo:
+
+```yaml
+jobs:
+  verify:
+    uses: hmesfin/.github/.github/workflows/pr-verify.yml@main
+```
+
+Public reusable workflows can be called by private repos. Note this is a
+different mechanism from default community health files: templates are
+inherited with no per-repo file, workflows are not, so every repo needs its own
+stub committed.
+
+Honest limit: this catches an unedited or empty field. It does not and cannot
+catch a false claim. It raises the cost of laziness, not the cost of lying.
+
+**Level 3 - invert the direction.** Stop asking the author to assert and have
+CI report. A workflow runs the test suite and posts results as a PR comment or
+check, so anything written under `Verified` can be read against machine output.
+This is the only option that actually binds, because it produces evidence
+independent of the author.
+
+Cost: real work per stack. The repos span Django, FastAPI, Vue, React Native,
+and Flutter, with different test commands and different CI maturity. Several
+already have workflows that run tests, so for those it is closer to surfacing
+existing output than building new pipelines.
+
+**Decision: Level 1 now, Level 3 later, Level 2 skipped.**
+
+Level 2 is skipped deliberately. It adds a per-repo file and a CI failure mode
+while defending only against the case least likely to occur - the placeholder
+left untouched is obvious on sight during review. It buys the appearance of
+enforcement without the substance, which is the exact failure this section
+exists to name.
+
+Level 3 is the correct end state but is a separate project with its own spec,
+scoped per stack. It is not blocked by anything here.
+
+Until Level 3 exists, `Verified` is a good-faith field governed by the rigor
+rules, and that limitation is understood rather than papered over.
+
 ## Rejected alternatives
 
 - **`~/.gitmessage` + `git config commit.template`.** Only populates the editor
@@ -233,6 +309,11 @@ commit and a real accepted commit before moving to the next.
   Accepted deliberately; history is already ~95% conventional.
 - **Dropping the sign-off gate.** Approved. Reversible by editing one paragraph
   of CLAUDE.md if PR quality drops.
+- **`Verified` is unenforceable until Level 3.** The field that replaces the
+  gate is good-faith only. See section 7. This is the largest known weakness in
+  the design and is accepted knowingly, not overlooked. The tripwire: if a
+  `Verified` claim is ever found to be false, that is the signal to build Level
+  3 rather than to re-add the gate.
 
 ## Success criteria
 
@@ -244,3 +325,12 @@ commit and a real accepted commit before moving to the next.
 - `git commit -m "fix(api): handle null tenant"` succeeds.
 - A fresh `git clone` plus `pre-commit install` wires the commit-msg stage with
   no extra flags.
+
+Explicitly not a success criterion: mechanical enforcement of `Verified`. That
+is out of scope by the decision in section 7.
+
+## Follow-on work
+
+`Verified` Level 3 - CI reports test results into the PR so the field can be
+read against machine output. Separate spec, scoped per stack (Django, FastAPI,
+Vue, React Native, Flutter). Not blocked by anything in this design.

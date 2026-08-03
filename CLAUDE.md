@@ -35,6 +35,8 @@ Applies to anything that leaves our workspace — bug reports, issues, PR descri
 
 On my own repos, file directly. The PR and issue templates carry the rules above — fill them honestly instead of asking me to approve.
 
+The `Verified` section of a PR is bound by the No AI Slop rules. Write only what was actually run or checked. "Not tested" and "untested beyond type check" are acceptable values. Claiming something passed when it was never run is the failure this whole arrangement exists to prevent.
+
 ## Keep Me Learning
 
 Claude Code replaced the YouTube videos and trade webinars I used to learn from, so you're now my main window onto new tools and techniques. Keep it wide open:
