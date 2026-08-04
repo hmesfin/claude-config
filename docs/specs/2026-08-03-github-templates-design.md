@@ -79,19 +79,52 @@ in the public `.github` repo. The same result was returned for the public repo
 PR template had been pushed at that point, so the endpoint is reporting actual
 resolved state rather than echoing the request.
 
+### The community-profile API does not report issue form directories
+
+Tested 2026-08-03. After pushing `ISSUE_TEMPLATE/` with three files,
+`community/profile` still returns `issue_template: null` - including for
+`hmesfin/.github` itself, where `gh api .../contents/.github/ISSUE_TEMPLATE`
+lists all three files.
+
+That field only tracks a legacy single `ISSUE_TEMPLATE.md`. A null there is an
+API blind spot and says nothing about whether issue forms work. Do not use this
+endpoint to check forms.
+
+### Issue forms validate against GitHub's published schema
+
+Both `01-bug.yml` and `02-feature.yml` validate clean against
+`https://www.schemastore.org/github-issue-forms.json` using `jsonschema`
+Draft 7.
+
+This matters because a malformed form is not an error - GitHub silently omits
+it from the chooser. Schema validation is the check that covers that failure
+mode without needing the UI. Worth re-running after any template edit:
+
+    curl -sSL -o /tmp/gh-forms.json https://www.schemastore.org/github-issue-forms.json
+    # then validate each ISSUE_TEMPLATE/*.yml against it with jsonschema
+
+Note the `-L`. `json.schemastore.org` 302s to `www.schemastore.org`; without
+`-L` you silently get a 174-byte HTML redirect stub instead of the schema.
+
 ## Unverified
 
-**The PR body prefill itself was not observed.** The community-profile endpoint
-proves GitHub resolves the inherited file. It does not prove the compose form
-populates from it. Confirming that requires an authenticated browser session,
-and the automation browser available during implementation had no GitHub login;
-anonymous users get only the diff on a compare page, with no PR form rendered at
-all.
+Both remaining gaps need an authenticated GitHub browser session. The
+automation browser used during implementation had no GitHub login, and both
+pages redirect anonymous users to `/login`.
 
-The gap is narrow - resolution is the mechanism the prefill reads from - but it
-is a gap. Closing it takes ten seconds in an already-logged-in browser: open any
-`hmesfin/*` repo's compare page with `?expand=1` and look at the description
-box.
+1. **PR body prefill.** The community-profile endpoint proves GitHub resolves
+   the inherited file; it does not prove the compose form populates from it.
+   Check: open any `hmesfin/*` compare URL with `?expand=1` and look at the
+   description box.
+2. **Issue chooser rendering and required-field enforcement.** Schema
+   validation proves the forms are well-formed, not that GitHub lists them or
+   that it blocks submission on a missing repro. Check: open
+   `https://github.com/hmesfin/<any-repo>/issues/new/choose`, confirm both
+   forms are listed, open Bug report, leave "Steps to reproduce" empty and try
+   to submit. Cancel out once the validation error appears - do not file.
+
+Neither is likely to fail given the evidence above. Both are recorded as open
+rather than assumed.
 
 ## Design
 
