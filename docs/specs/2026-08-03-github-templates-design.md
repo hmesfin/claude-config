@@ -312,6 +312,36 @@ is on the prefix.
 Rollout is one repo at a time. Each repo is verified with a real rejected
 commit and a real accepted commit before moving to the next.
 
+### Rollout result, 2026-08-03
+
+15 of 21 repos are fully enforcing: hook in config, `commit-msg` in
+`default_install_hook_types`, and `.git/hooks/commit-msg` present. Each was
+verified with a real rejected commit and a real accepted commit.
+
+Six were skipped because they had uncommitted work, and committing in them
+would have bundled unrelated changes: `data-imports` (left deliberately for the
+owner), `djvufl-rentkee`, `etbiz`, `invoicing-service`, `p7`, `team-gojjo-mvp`.
+
+`add-commit-hook.py` in this repo performs the insertion. It works at the text
+level so comments and formatting survive, reparses to verify, and refuses to
+write if anything looks wrong. Run it, then `pre-commit install`, then test a
+rejection before trusting it.
+
+### Most repos had pre-commit configured but never installed
+
+Found during rollout: only 6 of the 21 repos had a `pre-commit` hook in
+`.git/hooks/`. The other 15 carried a `.pre-commit-config.yaml` while running
+nothing on commit - ruff, formatting, none of it.
+
+Hooks live in `.git/hooks/`, which is local and never cloned, so a fresh clone
+starts with no hooks regardless of what the config says. A committed config is
+a declaration; the installed hook is the enforcement. They look identical in
+review and `pre-commit run --all-files` passes either way.
+
+All 15 rolled-out repos now have both stages installed, which also switches on
+the lint hooks that were previously inert. Expect commits to start failing on
+lint issues that used to pass.
+
 ### 7. The `Verified` field cannot enforce itself
 
 The design leans on the `Verified` field to replace the sign-off gate. That
