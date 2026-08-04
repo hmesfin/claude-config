@@ -276,7 +276,38 @@ pre-commit and commit-msg stages. Without it, `pre-commit install` installs
 only the pre-commit stage, the config looks correct, `pre-commit run
 --all-files` passes, and no commit message is ever validated. Silent no-op.
 
-`--strict` is not enabled, so merge and revert commits still pass.
+`--strict` is not enabled. Per the hook's own help text it "Disallows fixup!
+and merge commits", so leaving it off exempts merges and autosquash prefixes.
+It has nothing to do with reverts.
+
+Accept/block boundaries, established 2026-08-03 by running the hook binary
+directly against sample messages:
+
+| Message | Result |
+|---|---|
+| `fix(api): handle null tenant` | pass |
+| `Revert "fix(api): handle null tenant"` (git default) | **block** |
+| `revert: fix(api): handle null tenant` | pass |
+| `Merge branch main into feature/x` | pass |
+| `Merge pull request #12 from hmesfin/feat` | pass |
+| `fixup! fix(api): handle null tenant` | pass |
+| `fixed the thing` | block |
+| `[deploy]` | **block** |
+
+Two consequences worth knowing before rollout:
+
+**`git revert <sha>` will fail the hook.** Git generates `Revert "original
+message"`, which is not conventional format. There is no revert exemption in
+the source - `is_merge()` and `has_autosquash_prefix()` are the only bypasses.
+Reverting means rewriting the message as `revert: <thing>`, or using
+`--no-verify`. Rewriting is preferable: `revert:` is a real conventional type
+and makes reverts greppable in history.
+
+**The `[deploy]` marker style is blocked.** `gojjotech-website` has commits
+titled `[deploy]` and bare `[deploy]` will not pass. Where the marker is a
+suffix on an otherwise conventional message
+(`chore(case studies): added images [deploy]`) it passes fine, since the check
+is on the prefix.
 
 Rollout is one repo at a time. Each repo is verified with a real rejected
 commit and a real accepted commit before moving to the next.

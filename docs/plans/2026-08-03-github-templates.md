@@ -654,40 +654,52 @@ Expected: BOTH `commit-msg` and `pre-commit` listed. If `commit-msg` is
 missing, `default_install_hook_types` was not picked up — stop and fix before
 continuing, because the hook is a silent no-op without it.
 
-- [ ] **Step 6: Prove it REJECTS a bad message**
+- [ ] **Step 6: Stage the config FIRST, then prove it REJECTS**
 
-This is the red half of the cycle. A hook that has never rejected is unproven.
+Order matters. `pre-commit` aborts with "Your pre-commit configuration is
+unstaged" if the config is not staged, so the rejection test must come after
+`git add`, not before.
 
 ```bash
-cd /home/hamel/projects/active/data-imports
-git commit --allow-empty -m "fixed the thing"; echo "exit=$?"
+cd <repo>
+git add .pre-commit-config.yaml
+before=$(git rev-parse HEAD)
+git commit -m "fixed the thing"
+after=$(git rev-parse HEAD)
+[ "$before" = "$after" ] && echo "CONFIRMED: rejected" || echo "PROBLEM: slipped through"
 ```
-Expected: `Conventional Commit` hook FAILS, `exit=1`, and no commit is created.
-Confirm with `git log --oneline -1` that HEAD is unchanged.
+Expected: `Conventional Commit ... Failed`, `[Bad commit message] >> fixed the
+thing`, and `CONFIRMED: rejected`.
 
 - [ ] **Step 7: Prove it ACCEPTS a good message**
 
 ```bash
-cd /home/hamel/projects/active/data-imports
-git add .pre-commit-config.yaml
+cd <repo>
 git commit -m "ci(pre-commit): enforce conventional commits at commit-msg stage"
-echo "exit=$?"
 git log --oneline -1
 ```
-Expected: `exit=0`, and the new commit at HEAD.
+Expected: `Conventional Commit ... Passed` and the new commit at HEAD.
 
-- [ ] **Step 8: Prove a revert message still passes**
+- [ ] **Step 8: Do NOT test reverts with a real commit**
 
-`--strict` is off specifically so these don't break. Verify that holds.
+Reverts are BLOCKED by this hook. Established 2026-08-03:
+`--strict` exempts merges and `fixup!` only — there is no revert exemption, and
+git's generated `Revert "..."` fails the check.
+
+Do not run a revert commit as a test. A rejected commit creates nothing, so a
+follow-up `git reset --hard HEAD~1` will destroy the Step 7 config commit
+instead of a throwaway. That mistake was made once during the pilot and had to
+be recovered from reflog.
+
+To probe accept/block boundaries, run the hook binary directly against a
+message file — no commits, nothing to clean up:
 
 ```bash
-cd /home/hamel/projects/active/data-imports
-git commit --allow-empty -m "Revert \"ci(pre-commit): enforce conventional commits at commit-msg stage\""
-echo "exit=$?"
-git reset --hard HEAD~1
+venv=$(find ~/.cache/pre-commit -name "conventional-pre-commit" -type f | head -1)
+t=$(mktemp -d); printf '%s' 'revert: some change' > "$t/m"
+"$venv" feat fix docs style refactor test chore ci build perf revert "$t/m" && echo PASS || echo BLOCK
+rm -rf "$t"
 ```
-Expected: `exit=0`. The `git reset` removes the throwaway commit — confirm with
-`git log --oneline -1` that HEAD is back to the Step 7 commit.
 
 - [ ] **Step 9: Report the pilot result and STOP**
 
