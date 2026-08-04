@@ -106,25 +106,35 @@ mode without needing the UI. Worth re-running after any template edit:
 Note the `-L`. `json.schemastore.org` 302s to `www.schemastore.org`; without
 `-L` you silently get a 174-byte HTML redirect stub instead of the schema.
 
+### Issue forms confirmed working end to end
+
+`hmesfin/yt-dlp-tui#6`, filed 2026-08-03 by the repo owner through the
+inherited Bug report form. `yt-dlp-tui` has no `.github/ISSUE_TEMPLATE` of its
+own, so the form was inherited from `hmesfin/.github`.
+
+Confirmed by the resulting issue body:
+
+- The chooser rendered and the Bug report form was reachable.
+- All five fields rendered with the expected headings.
+- `labels: ["bug"]` was applied automatically.
+- `Suspected cause` was skippable and emitted `_No response_`, which is what
+  GitHub writes for an unfilled optional field. The optional/required split
+  works as designed.
+
 ## Unverified
 
-Both remaining gaps need an authenticated GitHub browser session. The
-automation browser used during implementation had no GitHub login, and both
-pages redirect anonymous users to `/login`.
-
-1. **PR body prefill.** The community-profile endpoint proves GitHub resolves
-   the inherited file; it does not prove the compose form populates from it.
-   Check: open any `hmesfin/*` compare URL with `?expand=1` and look at the
+1. **Required fields blocking submission.** Issue #6 had every required field
+   filled, so the validator was never exercised. Schema validation proves
+   `required: true` is correctly declared; nothing yet proves GitHub refuses a
+   submission without a repro. Check: open the Bug report form, leave "Steps to
+   reproduce" empty, attempt to submit, then cancel out.
+2. **PR body prefill.** The community-profile endpoint proves GitHub resolves
+   the inherited PR template; it does not prove the compose form populates from
+   it. Check: open any `hmesfin/*` compare URL with `?expand=1` and look at the
    description box.
-2. **Issue chooser rendering and required-field enforcement.** Schema
-   validation proves the forms are well-formed, not that GitHub lists them or
-   that it blocks submission on a missing repro. Check: open
-   `https://github.com/hmesfin/<any-repo>/issues/new/choose`, confirm both
-   forms are listed, open Bug report, leave "Steps to reproduce" empty and try
-   to submit. Cancel out once the validation error appears - do not file.
 
-Neither is likely to fail given the evidence above. Both are recorded as open
-rather than assumed.
+Both need an authenticated browser session - anonymous requests to either page
+redirect to `/login`.
 
 ## Design
 
