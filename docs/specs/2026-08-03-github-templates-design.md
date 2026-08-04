@@ -54,17 +54,44 @@ Confirmed against GitHub docs on 2026-08-03:
   be used.`
 - `conventional-pre-commit` latest release is `v4.4.0`, published 2026-02-18.
   Its manifest declares `stages: [commit-msg]`.
+- The account holds 161 repos: 130 private, 31 public. An earlier figure of
+  ~40 in this document's first draft came from a truncated listing and was
+  wrong.
+
+### Private repos DO inherit defaults from a public `.github` repo
+
+Tested 2026-08-03 after publishing a sentinel `PULL_REQUEST_TEMPLATE.md` to
+`hmesfin/.github`.
+
+    $ gh api repos/hmesfin/cli-crawler/community/profile \
+        --jq '.files | {pull_request_template, issue_template}'
+    {"issue_template":null,
+     "pull_request_template":{
+       "html_url":"https://github.com/hmesfin/.github/blob/main/.github/PULL_REQUEST_TEMPLATE.md",
+       ...}}
+
+`cli-crawler` is private and has no `.github` directory of its own. GitHub's
+own community-profile endpoint resolves its pull request template to the file
+in the public `.github` repo. The same result was returned for the public repo
+`yt-dlp-tui`.
+
+`issue_template` returning `null` in the same response is the control: only the
+PR template had been pushed at that point, so the endpoint is reporting actual
+resolved state rather than echoing the request.
 
 ## Unverified
 
-Whether default community health files from a public `.github` repo reach
-**private** repos owned by the same account.
+**The PR body prefill itself was not observed.** The community-profile endpoint
+proves GitHub resolves the inherited file. It does not prove the compose form
+populates from it. Confirming that requires an authenticated browser session,
+and the automation browser available during implementation had no GitHub login;
+anonymous users get only the diff on a compare page, with no PR form rendered at
+all.
 
-GitHub's docs restrict the visibility of the `.github` repo itself but state no
-visibility requirement on the target repos, and community reports say private
-repos do inherit. That is inference, not confirmation. Most of the ~40 repos
-are private, so this is load-bearing and gets an empirical test before anything
-is published. See Risks.
+The gap is narrow - resolution is the mechanism the prefill reads from - but it
+is a gap. Closing it takes ten seconds in an already-logged-in browser: open any
+`hmesfin/*` repo's compare page with `?expand=1` and look at the description
+box.
 
 ## Design
 
@@ -297,10 +324,8 @@ rules, and that limitation is understood rather than papered over.
 
 ## Risks
 
-- **Private repos may not inherit defaults.** Load-bearing and unverified.
-  Tested empirically before publishing. If it fails, the same
-  `github-templates/` directory feeds a per-repo sync script instead; the
-  layout does not change, so the work is not stranded.
+- ~~**Private repos may not inherit defaults.**~~ Resolved 2026-08-03. They do.
+  See Verified facts. The sync-script fallback is no longer needed.
 - **Public `.github` repo leaks template content.** Mitigated by keeping
   templates generic.
 - **All-or-nothing `ISSUE_TEMPLATE` override.** A repo adding one custom form
