@@ -1,0 +1,49 @@
+name: Bug report
+description: Something is broken. Include a reproduction.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        File on a reproduction, not a conviction. If it can't be reproduced,
+        say so in Notes rather than filing.
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps someone else could follow start to finish.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: Paste exact output or error text, not a summary of it.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "branch or commit, OS, service (django / frontend / worker)"
+    validations:
+      required: true
+  - type: textarea
+    id: suspected
+    attributes:
+      label: Suspected cause
+      description: >
+        Optional. Mark inference as inference. Leave blank unless the cause has
+        actually been isolated.
+    validations:
+      required: false

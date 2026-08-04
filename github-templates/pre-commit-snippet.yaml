@@ -1,0 +1,21 @@
+# Appended to each repo's .pre-commit-config.yaml by hand, one repo at a time.
+# Not published to hmesfin/.github.
+#
+# default_install_hook_types goes at TOP level of the config, not under repos:.
+# Without it, `pre-commit install` wires only the pre-commit stage and no
+# commit message is ever validated - the config looks correct and silently
+# does nothing.
+#
+# stages: [commit-msg] is set explicitly even though the hook manifest already
+# declares it, because most configs set default_stages: [pre-commit] at top
+# level and the precedence between the two is ambiguous.
+
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, style, refactor, test, chore, ci, build, perf, revert]
