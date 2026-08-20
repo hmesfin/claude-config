@@ -81,6 +81,26 @@ else
     echo -e "${YELLOW}⚠️${NC}  Skipped: CLAUDE.md (file not found)"
 fi
 
+# Ensure the global git ignore covers playwright-cli output.
+# The playwright-cli skill writes .playwright-cli/ into whatever directory it
+# runs from, so it turns up as untracked noise in every project without this.
+echo ""
+echo "Checking global gitignore..."
+GIT_IGNORE_FILE="$(git config --global --get core.excludesFile 2>/dev/null || true)"
+GIT_IGNORE_FILE="${GIT_IGNORE_FILE/#\~/$HOME}"
+if [ -z "$GIT_IGNORE_FILE" ]; then
+    # git reads this path by default even with core.excludesFile unset
+    GIT_IGNORE_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/git/ignore"
+fi
+mkdir -p "$(dirname "$GIT_IGNORE_FILE")"
+touch "$GIT_IGNORE_FILE"
+if grep -qxF '.playwright-cli/' "$GIT_IGNORE_FILE"; then
+    echo -e "${GREEN}✅${NC} Already ignored: .playwright-cli/ ($GIT_IGNORE_FILE)"
+else
+    printf '.playwright-cli/\n' >> "$GIT_IGNORE_FILE"
+    echo -e "${GREEN}✅${NC} Added: .playwright-cli/ to $GIT_IGNORE_FILE"
+fi
+
 echo ""
 echo -e "${GREEN}════════════════════════════════════════${NC}"
 echo -e "${GREEN}✅ Symlink setup complete!${NC}"
