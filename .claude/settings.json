@@ -14,45 +14,14 @@
     ]
   },
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/home/hamel/.claude/hooks/docker-command-guard.py"
-          }
-        ]
-      },
+    "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 /home/hamel/.claude/hooks/maestro-orchestration-reminder.py"
-          },
-          {
-            "type": "command",
-            "command": "python3 /home/hamel/.claude/hooks/prevent-autonomous-coding.py"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|MultiEdit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 /home/hamel/.claude/hooks/evidence-based-completion.py"
-          },
-          {
-            "type": "command",
-            "command": "if echo \"$CLAUDE_FILE_PATHS\" | grep -q '\\.py$'; then ruff check --fix \"$CLAUDE_FILE_PATHS\" && black \"$CLAUDE_FILE_PATHS\"; fi"
-          },
-          {
-            "type": "command",
-            "command": "if echo \"$CLAUDE_FILE_PATHS\" | grep -qE '\\.(js|vue|ts)$'; then prettier --write \"$CLAUDE_FILE_PATHS\"; fi"
+            "timeout": 15,
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.py) ruff format \"$f\" >/dev/null 2>&1; ruff check --fix \"$f\" >/dev/null 2>&1;; esac; exit 0"
           }
         ]
       }

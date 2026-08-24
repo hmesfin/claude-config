@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Refuse to commit if the tracked global settings carry sensitive content.
+# Install: ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+set -euo pipefail
+repo_root=$(git rev-parse --show-toplevel)
+if git diff --cached --name-only | grep -q '^global-settings.json$'; then
+  python3 "$repo_root/scripts/sync-settings.py" --check
+fi

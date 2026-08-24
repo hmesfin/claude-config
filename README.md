@@ -98,6 +98,36 @@ git pull
 
 Changes are **instantly available** in `~/.claude/` thanks to symlinks!
 
+### Global settings (`~/.claude/settings.json`)
+
+This one is **not** symlinked, on purpose. Claude Code writes an
+`autoMode.environment` block into it on its own, and that block records
+filesystem paths, private repo names, and where secrets live. **This repo is
+public.** A symlink would eventually push all of that to GitHub with nobody
+watching.
+
+So it syncs explicitly instead, through `global-settings.json`:
+
+```bash
+# after changing settings locally (plugins, permissions, hooks)
+python3 scripts/sync-settings.py --pull    # live -> repo, machine keys stripped
+
+# on a new machine, after git pull
+python3 scripts/sync-settings.py --push    # repo -> live, local recon preserved
+
+python3 scripts/sync-settings.py --check   # verify the tracked copy is clean
+```
+
+`--pull` strips `autoMode`, then re-scans what's left and refuses to write if
+anything sensitive survived. The filter is enforced, not trusted.
+
+Install the pre-commit guard so a bad `global-settings.json` can't be
+committed at all:
+
+```bash
+ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+```
+
 ## 🎯 Specialized Agents
 
 ### Backend Development
