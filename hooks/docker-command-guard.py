@@ -71,61 +71,68 @@ ALLOWED_PATTERNS = [
 
 # Help messages for blocked commands
 HELP_MESSAGES = {
-    'npm_dev': '''
-❌ BLOCKED: npm run dev
+    'npm_dev': """
+BLOCKED: npm run dev
 
-This command is already running in Docker.
+Already running in Docker.
 
-✅ Instead use:
-  - View logs: docker compose logs -f frontend
+Instead:
+  - Logs:    docker compose logs -f frontend
   - Restart: docker compose restart frontend
-  - Build: docker compose run --rm frontend npm run build
-''',
-    'django_runserver': '''
-❌ BLOCKED: python manage.py runserver
+  - Build:   docker compose exec -T frontend npm run build
+""",
+    'django_runserver': """
+BLOCKED: python manage.py runserver
 
-This command is already running in Docker.
+Already running in Docker.
 
-✅ Instead use:
-  - View logs: docker compose logs -f django
+Instead:
+  - Logs:    docker compose logs -f django
   - Restart: docker compose restart django
-  - Shell: docker compose run --rm django python manage.py shell
-''',
-    'django_management': '''
-❌ BLOCKED: python manage.py <command>
+  - Shell:   docker compose exec django /entrypoint python manage.py shell
+""",
+    'django_management': """
+BLOCKED: python manage.py <command>
 
-Django management commands require the Postgres database running in Docker.
+Django management commands need the Postgres running in Docker.
 
-✅ Instead use:
-  - Migrations: docker compose run --rm django python manage.py makemigrations
-  - Migrate: docker compose run --rm django python manage.py migrate
-  - Shell: docker compose run --rm django python manage.py shell
-  - Create superuser: docker compose run --rm django python manage.py createsuperuser
-  - Custom commands: docker compose run --rm django python manage.py <command>
+Instead:
+  - Migrations:  docker compose exec -T django /entrypoint python manage.py makemigrations
+  - Migrate:     docker compose exec -T django /entrypoint python manage.py migrate
+  - Shell:       docker compose exec django /entrypoint python manage.py shell
+  - Superuser:   docker compose exec django /entrypoint python manage.py createsuperuser
+  - Anything:    docker compose exec -T django /entrypoint python manage.py <command>
 
-⚠️  EXCEPTION: Only 'startapp' runs locally (for file ownership):
-  - Create app: python manage.py startapp <app_name>
-''',
-    'uvicorn': '''
-❌ BLOCKED: uvicorn/gunicorn dev server
+The /entrypoint prefix builds DATABASE_URL and cd's to /app/backend. Without it
+you get a missing DATABASE_URL or the wrong working directory. Drop -T for
+interactive commands like shell and dbshell.
 
-This service is already running in Docker.
+If the service isn't running: docker compose up -d django, then retry. Don't
+fall back to `run --rm` silently -- it costs ~13s per call against ~2.5s.
 
-✅ Instead use:
-  - View logs: docker compose logs -f backend
+EXCEPTION: startapp runs locally, for file ownership:
+  python manage.py startapp <app_name>
+""",
+    'uvicorn': """
+BLOCKED: uvicorn/gunicorn/daphne dev server
+
+Already running in Docker.
+
+Instead:
+  - Logs:    docker compose logs -f backend
   - Restart: docker compose restart backend
-  - Run commands: docker compose run --rm backend <command>
-''',
-    'celery_worker': '''
-❌ BLOCKED: celery worker
+  - Run:     docker compose exec -T backend /entrypoint <command>
+""",
+    'celery_worker': """
+BLOCKED: celery worker
 
-Celery worker is already running in Docker.
+Already running in Docker.
 
-✅ Instead use:
-  - View logs: docker compose logs -f celery
+Instead:
+  - Logs:    docker compose logs -f celery
   - Restart: docker compose restart celery
-  - Inspect: docker compose exec celery celery -A <app> inspect active
-''',
+  - Inspect: docker compose exec -T celery celery -A <app> inspect active
+""",
 }
 
 
