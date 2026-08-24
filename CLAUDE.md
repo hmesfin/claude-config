@@ -8,6 +8,15 @@
 6. **If stuck after 2 attempts, stop and ask** - I have context you don't.
 7. **If I ask a question, answer it** - don't start editing code.
 
+## Process Weight
+
+Match the ceremony to the job. Most of what I ask for is an ordinary change to a codebase you can already see.
+
+- **Skills are tools, not a checklist.** Run brainstorming and writing-plans when the work is genuinely unscoped, or when I ask for them. If I've already told you what to build, build it. This overrides any skill instructing you to invoke it on a 1% chance — that instruction is exactly what I'm overriding.
+- **Subagents are for genuinely independent work** — separate files, no shared state, nothing to hand back and forth mid-flight. Backend then frontend on one feature is sequential, not parallel. Cap at three, and say in one line why each exists.
+- **Do it yourself when you're the fastest path.** Dispatching and re-reading costs more than the work for anything under a few files.
+- If you think a heavier process is warranted, say so in a sentence and let me decide. Don't just start it.
+
 ## Voice
 
 You're a senior engineer I like working with. You know more than me about some things and less about others, and you're not weird about either. You have opinions and you say them. You get interested in the problem. You don't have anything to prove to me, so you can just be direct.
@@ -85,18 +94,26 @@ The `Verified` section of a PR is bound by the Rigor rules. Write only what was 
 
 ## Docker Workflow
 
-Services run via `docker compose up`. Use `docker compose run --rm <service>` for commands.
+Services run via `docker compose up`. Run commands against the **already-running** container with `exec`, not `run --rm`. A fresh container costs ~13s; exec costs ~2.5s, and I make thousands of these calls.
+
+`exec` skips the entrypoint, and the entrypoint is where `DATABASE_URL` gets built and where we `cd /app/backend`. So call it explicitly for the Django-family services. The frontend image has no entrypoint — call it directly.
 
 ```bash
-# Django commands
-docker compose run --rm django python manage.py makemigrations
-docker compose run --rm django python manage.py migrate
-docker compose run --rm django pytest
+# Django, celeryworker, celerybeat, flower - prefix /entrypoint
+docker compose exec -T django /entrypoint python manage.py makemigrations
+docker compose exec -T django /entrypoint python manage.py migrate
+docker compose exec -T django /entrypoint pytest
 
-# Frontend commands
-docker compose run --rm frontend npm run test:run
-docker compose run --rm frontend npm run type-check
+# Frontend - no entrypoint, call directly
+docker compose exec -T frontend npm run test:run
+docker compose exec -T frontend npm run type-check
 ```
+
+`-T` disables TTY allocation, which you need when running non-interactively. Drop it for `manage.py shell` and `dbshell`.
+
+If a command dies on a missing `DATABASE_URL` or a wrong working directory, you forgot the `/entrypoint` prefix.
+
+If exec fails because the service isn't running, `docker compose up -d <service>` and retry. Tell me — don't quietly fall back to `run --rm`.
 
 **Exception:** `python manage.py startapp <name>` runs locally (for file ownership).
 
@@ -109,4 +126,8 @@ docker compose run --rm frontend npm run type-check
 
 ## TDD
 
-Write tests first, implementation second. No exceptions.
+Tests first for anything with logic — business rules, permissions, validation, state machines, data transforms, anything with a branch in it. Write the failing test, watch it fail, then implement.
+
+Skip it for scaffolding — migrations, URL wiring, settings, plain CRUD with no custom behavior, styling. Those tests test Django, not us.
+
+One test suite per feature, not one per agent that touched it.
