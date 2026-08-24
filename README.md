@@ -35,8 +35,7 @@ claude-config/
 ├── scripts/                   # sync-settings.py, pre-commit, voice_metrics.py
 ├── github-actions/            # Reusable workflow definitions
 ├── github-templates/          # Canonical PR and issue templates
-├── docs/                      # Guides, plans, specs, and archived history
-├── improvements/              # Proposals not yet acted on
+├── docs/                      # Current guides, plus plans/, specs/, archive/
 ├── .claude/                   # Settings for working *in this repo*
 └── setup-claude-symlinks.sh   # Symlink setup script
 ```
@@ -169,10 +168,12 @@ writing, as `settings.json.bak-<timestamp>`.
 - [Docker Workflow](docs/DOCKER_WORKFLOW.md) - Docker development workflow
 - [Multi-Machine Setup](docs/MULTI_MACHINE_SETUP.md) - sync across machines
 - [Staging Deployment](docs/STAGING_DEPLOYMENT.md) - Traefik multi-tenant setup
+- [P0 Implementation](docs/P0_IMPLEMENTATION.md) - the auto-progress hook and
+  the coverage-guardian action, both of which are live
+- [GitHub MCP Ideas](docs/GH_MCP_IDEAS.md) - a backlog, not a description of
+  anything built
 
-### Historical
-
-`docs/P0_IMPLEMENTATION.md` through `P2_IMPLEMENTATION.md`, `docs/ROADMAP.md`,
-and `docs/GH_MCP_IDEAS.md` describe a GitHub project-management command suite
-that has since been removed. They are kept as history and do not describe
-current behavior.
+Everything in `docs/` describes something that currently exists. Anything that
+stopped being true is under `docs/archive/`, including the guides to the
+project-management command suite removed in 54f529c and the analyses of the
+agents archived in the same commit.

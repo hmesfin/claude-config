@@ -218,7 +218,7 @@ cat ~/.claude/skills/TYPESCRIPT_PATTERNS.md  # Shows Rule 9
 # Update the hook to fix an issue
 vim ~/claude-config/hooks/docker-command-guard.py
 git add hooks/docker-command-guard.py
-git commit -m "Fix vue-tdd-architect template ref pattern"
+git commit -m "fix(hooks): allow the exec form in docker-command-guard"
 git push
 ```
 
@@ -350,8 +350,8 @@ git push
 # Add notes to commit
 git commit -m "Refactor all agents to reference skills/
 
-- Reduced django-tdd-architect by 10%
-- Reduced vue-tdd-architect by 31%
+- Trimmed a hook by 10%
+- Reduced docker-command-guard by 31%
 - Created new skills/ directory
 - Updated 3 of 26 agents
 

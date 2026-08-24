@@ -174,7 +174,7 @@ src/
 
 ```bash
 # ALWAYS run before committing
-docker compose run --rm frontend npm run type-check
+docker compose exec -T frontend npm run type-check
 
 # Expected: "Found 0 errors"
 # If errors exist, FIX THEM FIRST before writing new code
@@ -271,13 +271,13 @@ formData.recurrence = pattern ?? null
 
 Before committing ANY code:
 
-1. Run type-check: `docker compose run --rm frontend npm run type-check`
+1. Run type-check: `docker compose exec -T frontend npm run type-check`
 2. If errors found:
    - Categorize: `npm run type-check 2>&1 | grep "error TS" | cut -d: -f3- | sort | uniq -c | sort -rn | head -10`
    - Fix highest-count errors first
    - Reference: `frontend/TYPESCRIPT_PATTERNS.md`
-3. Run tests: `docker compose run --rm frontend npm run test:unit`
-4. Run build: `docker compose run --rm frontend npm run build-only`
+3. Run tests: `docker compose exec -T frontend npm run test:unit`
+4. Run build: `docker compose exec -T frontend npm run build-only`
 5. Only commit if ALL pass: TypeScript 0 errors ✅ Tests passing ✅ Build success ✅
 
 ---
@@ -308,21 +308,21 @@ python manage.py startapp <app_name>
 
 ```bash
 # Database operations
-docker compose run --rm django python manage.py makemigrations
-docker compose run --rm django python manage.py migrate
+docker compose exec -T django /entrypoint python manage.py makemigrations
+docker compose exec -T django /entrypoint python manage.py migrate
 
 # Interactive shells
-docker compose run --rm django python manage.py shell
-docker compose run --rm django python manage.py dbshell
+docker compose exec django /entrypoint python manage.py shell
+docker compose exec django /entrypoint python manage.py dbshell
 
 # User management
-docker compose run --rm django python manage.py createsuperuser
+docker compose exec django /entrypoint python manage.py createsuperuser
 
 # Testing
-docker compose run --rm django pytest
+docker compose exec -T django /entrypoint pytest
 
 # Custom management commands
-docker compose run --rm django python manage.py <command>
+docker compose exec -T django /entrypoint python manage.py <command>
 ```
 
 ### View Logs / Restart Services
@@ -342,7 +342,7 @@ docker compose restart frontend
 
 ## Code Quality Gates
 
-**Enforced via `/lint-and-format --gate` command**
+**Enforced by running the checks directly** (the `/lint-and-format` command was removed in 54f529c)
 
 ### Quality Gate Sequence (ALL Must Pass)
 
@@ -361,26 +361,25 @@ Backend Quality Gate:
 ### Usage
 
 ```bash
-# During development (find issues early)
-/lint-and-format --frontend --fix --categorize --suggest-fixes
+# Frontend
+docker compose exec -T frontend npm run type-check
+docker compose exec -T frontend npm run lint
 
-# Before committing (full quality check)
-/lint-and-format --gate --frontend
-
-# Track progress over time
-/lint-and-format --trend
+# Backend
+docker compose exec -T django /entrypoint ruff check --fix .
+docker compose exec -T django /entrypoint pytest
 ```
 
 ### Error Categorization
 
-The `/lint-and-format` command categorizes errors by frequency:
+To see which errors dominate, group the compiler output:
 
 ```bash
 # Show top 10 error patterns
-/lint-and-format --frontend --categorize
+docker compose exec -T frontend npm run type-check 2>&1 \
+  | grep -oE 'error TS[0-9]+' | sort | uniq -c | sort -rn | head
 
-# Get fix suggestions from pattern library
-/lint-and-format --frontend --suggest-fixes
+# See TYPESCRIPT_PATTERNS.md for fixes to the common ones
 ```
 
 ### Success Metrics
@@ -537,24 +536,22 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ### 1. Specialized Agents
 
-26 specialized agents enforce these standards:
-
-- `django-tdd-architect` - Django TDD enforcement
-- `vue-tdd-architect` - Vue.js TDD enforcement
-- `react-native-tdd-architect` - React Native TDD enforcement
-- `tdd-test-specialist` - Overall TDD enforcement
+These standards used to be enforced by 26 specialized agents. Those were
+archived in 54f529c after transcripts showed 22 of them had never been
+dispatched; they are in `agents-archive/`. The standards now stand on their
+own, and `CLAUDE.md` carries the rules that must actually be followed.
 - `security-tdd-architect` - Security testing enforcement
 - And 21 more specialized agents
 
 ### 2. Slash Commands
 
-- `/lint-and-format` - Code quality enforcement
-- `/generate-legal` - Legal document generation
+- `/deploy-staging`, `/deploy-production` - deployment config generation
+- `/generate-legal` - legal document generation
 
 ### 3. Hooks
 
-- `docker-command-guard.py` - Enforces Docker workflow
-- `typescript-quality-guard.py` - Prevents TypeScript errors before writing
+- `docker-command-guard.py` - enforces the Docker workflow (PreToolUse, Bash)
+- `post-tool-use/auto-progress-tracker.py` - closes GitHub issues on `fixes #N` (PostToolUse, Bash)
 
 ### 4. Documentation
 
@@ -578,26 +575,24 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ```bash
 # Frontend
-docker compose run --rm frontend npm run type-check
-docker compose run --rm frontend npm run test:unit
-docker compose run --rm frontend npm run build-only
+docker compose exec -T frontend npm run type-check
+docker compose exec -T frontend npm run test:unit
+docker compose exec -T frontend npm run build-only
 
 # Backend
-docker compose run --rm django ruff check .
-docker compose run --rm django pytest
-docker compose run --rm django python manage.py check
+docker compose exec -T django /entrypoint ruff check .
+docker compose exec -T django /entrypoint pytest
+docker compose exec -T django /entrypoint python manage.py check
 
-# Quality gate (runs all)
-/lint-and-format --gate
+# Frontend
+docker compose exec -T frontend npm run type-check
 ```
 
 ### When Stuck
 
-1. Reference agent documentation in `agents/`
-2. Check `TYPESCRIPT_PATTERNS.md` for frontend issues
-3. Check `DOCKER_WORKFLOW.md` for Docker questions
-4. Use `/lint-and-format --categorize --suggest-fixes` for errors
-5. Ask user for clarification
+1. Check `TYPESCRIPT_PATTERNS.md` for frontend issues
+2. Check `DOCKER_WORKFLOW.md` for Docker questions
+3. Ask user for clarification
 
 ---
 

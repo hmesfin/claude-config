@@ -28,7 +28,7 @@ These patterns prevent TypeScript errors BEFORE they're written. Based on fixing
 
 ```bash
 # ALWAYS run type-check before writing component code
-docker compose run --rm frontend npm run type-check
+docker compose exec -T frontend npm run type-check
 
 # Expected output: "Found 0 errors"
 # If errors exist, FIX THEM FIRST before writing new code
@@ -40,7 +40,7 @@ docker compose run --rm frontend npm run type-check
 - Ensures clean baseline before adding code
 
 **Enforcement**:
-- Pre-commit hook via `/lint-and-format --gate`
+- Pre-commit type-check (`npm run type-check`)
 - TypeScript quality guard hook warns when writing files
 - Quality gate blocks commits with TypeScript errors
 
@@ -470,7 +470,7 @@ Before committing ANY Vue/TypeScript code:
 ### 1. Run Type-Check
 
 ```bash
-docker compose run --rm frontend npm run type-check
+docker compose exec -T frontend npm run type-check
 ```
 
 **Expected**: "Found 0 errors"
@@ -489,7 +489,7 @@ npm run type-check 2>&1 | grep "error TS" | cut -d: -f3- | sort | uniq -c | sort
 ### 3. Run Tests
 
 ```bash
-docker compose run --rm frontend npm run test:unit
+docker compose exec -T frontend npm run test:unit
 ```
 
 **Expected**: All tests passing
@@ -497,7 +497,7 @@ docker compose run --rm frontend npm run test:unit
 ### 4. Run Build
 
 ```bash
-docker compose run --rm frontend npm run build-only
+docker compose exec -T frontend npm run build-only
 ```
 
 **Expected**: Build succeeds
@@ -505,7 +505,7 @@ docker compose run --rm frontend npm run build-only
 ### 5. Quality Gate
 
 ```bash
-/lint-and-format --gate --frontend
+docker compose exec -T frontend npm run type-check
 ```
 
 **Only commit if ALL pass**:
@@ -546,7 +546,7 @@ npm run type-check 2>&1 | grep "does not exist on type"
 
 ```bash
 # Smart categorization with fix suggestions
-/lint-and-format --frontend --categorize --suggest-fixes
+docker compose exec -T frontend npm run type-check
 ```
 
 ---
@@ -587,7 +587,7 @@ Print this out or keep it handy:
 // ✅ CHECKLIST BEFORE COMMITTING
 
 // 1. Type-check first
-docker compose run --rm frontend npm run type-check
+docker compose exec -T frontend npm run type-check
 
 // 2. Template refs - cast to HTML type
 (wrapper.find('[data-test="input"]').element as HTMLInputElement).value
@@ -616,9 +616,8 @@ value ?? null  // convert undefined to null
 ## Related Documentation
 
 - `skills/DEVELOPMENT_STANDARDS.md` - Overall development standards
-- `/lint-and-format --help` - Error categorization tool
-- `hooks/README.md` - TypeScript quality guard hook
-- `agents/vue-tdd-architect.md` - Vue.js TDD patterns
+- `hooks/README.md` - the hooks that are actually wired
+- `agents-archive/vue-tdd-architect.md` - Vue TDD patterns (archived)
 
 ---
 

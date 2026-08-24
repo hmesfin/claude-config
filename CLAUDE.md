@@ -115,6 +115,8 @@ If a command dies on a missing `DATABASE_URL` or a wrong working directory, you 
 
 If exec fails because the service isn't running, `docker compose up -d <service>` and retry. Tell me — don't quietly fall back to `run --rm`.
 
+This is the **local dev** rule. Production deploys are the opposite: run migrations as a one-shot `docker compose run --rm` after `up -d`, never inside the serving container. `commands/deploy-production.md` is correct as written — don't "fix" it.
+
 **Exception:** `python manage.py startapp <name>` runs locally (for file ownership).
 
 ## Tools
