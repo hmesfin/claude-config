@@ -72,7 +72,7 @@ ls -la ~/.claude/
 # Test reading through symlinks
 cat ~/.claude/skills/README.md
 ls ~/.claude/commands/
-ls ~/.claude/agents/
+ls ~/.claude/commands/
 ```
 
 ## Daily Workflow
@@ -84,12 +84,12 @@ ls ~/.claude/agents/
 cd ~/claude-config
 
 # Edit files
-vim agents/django-tdd-architect.md
+vim commands/deploy-staging.md
 vim skills/DEVELOPMENT_STANDARDS.md
 
 # Commit and push
 git add .
-git commit -m "Update Django agent patterns"
+git commit -m "docs: update staging deploy steps"
 git push
 ```
 
@@ -105,34 +105,42 @@ cd ~/claude-config
 git pull
 
 # Changes are immediately reflected in ~/.claude/
-cat ~/.claude/agents/django-tdd-architect.md  # Shows updated content
+cat ~/.claude/commands/deploy-staging.md  # Shows updated content
 ```
 
 ## What Gets Synced
 
 ### ✅ Automatically Synced via Git
 
-- All agent files (`agents/*.md`)
-- All command files (`commands/*.md`)
-- All hook scripts (`hooks/*.py`)
-- All skills documentation (`skills/*.md`)
+- Command files (`commands/*.md`)
+- Hook scripts (`hooks/*.py`)
+- Skills (`skills/<name>/SKILL.md`)
 - Global instructions (`CLAUDE.md`)
 - Documentation files (`*.md`)
 - Setup scripts (`setup-claude-symlinks.sh`)
+- Agent files (`agents/*.md`), though `agents/` is currently empty. See the
+  README for why
 
 ### ❌ Not Synced (Machine-Specific)
 
 - `~/.claude/history.jsonl` - Claude Code history
-- `~/.claude/settings.json` - Machine-specific settings
-- `~/.claude/projects/` - Project-specific data
+- `~/.claude/projects/` - session transcripts
 - `~/.claude/.credentials.json` - API credentials
+
+### ⚠️ Synced, but not by symlink
+
+`~/.claude/settings.json` is split. The shared half (plugins, permissions,
+hooks) is tracked as `global-settings.json`; the `autoMode.environment` block
+is machine-specific recon naming private repos and secrets locations, and
+never leaves the machine. Move it with `scripts/sync-settings.py --pull` and
+`--push` rather than by editing either copy directly. See the README.
 
 ## Benefits of This Approach
 
 ### 1. Single Source of Truth
 ```bash
 # Edit once, available everywhere
-vim ~/claude-config/agents/django-tdd-architect.md
+vim ~/claude-config/commands/deploy-staging.md
 git push
 # Now available on all machines
 ```
@@ -207,9 +215,9 @@ cat ~/.claude/skills/TYPESCRIPT_PATTERNS.md  # Shows Rule 9
 
 **Work Machine**:
 ```bash
-# Update agent to fix issue
-vim ~/claude-config/agents/vue-tdd-architect.md
-git add agents/vue-tdd-architect.md
+# Update the hook to fix an issue
+vim ~/claude-config/hooks/docker-command-guard.py
+git add hooks/docker-command-guard.py
 git commit -m "Fix vue-tdd-architect template ref pattern"
 git push
 ```
@@ -261,7 +269,7 @@ cd ~/claude-config
 **Diagnosis**:
 ```bash
 # Check if symlink is valid
-ls -la ~/.claude/agents
+ls -la ~/.claude/commands
 
 # Should show: agents -> /home/username/claude-config/agents
 # NOT: agents -> /home/differentuser/claude-config/agents
@@ -293,10 +301,10 @@ cd ~/claude-config
 git pull  # Shows conflict
 
 # Edit conflicted file
-vim agents/django-tdd-architect.md
+vim commands/deploy-staging.md
 
 # Resolve conflict markers
-git add agents/django-tdd-architect.md
+git add commands/deploy-staging.md
 git commit -m "Resolve merge conflict"
 git push
 ```
@@ -306,7 +314,7 @@ git push
 ### 1. Commit Often
 ```bash
 # Small, focused commits
-git add agents/django-tdd-architect.md
+git add commands/deploy-staging.md
 git commit -m "Update Django file organization pattern"
 git push
 ```
@@ -331,7 +339,7 @@ git commit -m "Update file"
 ### 4. Test Locally First
 ```bash
 # Edit and test on one machine
-vim ~/claude-config/agents/django-tdd-architect.md
+vim ~/claude-config/commands/deploy-staging.md
 # Use it with Claude Code to verify
 # Then push
 git push
@@ -350,27 +358,6 @@ git commit -m "Refactor all agents to reference skills/
 See PHASE2_COMPLETION.md for details"
 ```
 
-## Current Repository State
-
-As of Phase 2 completion:
-
-```
-claude-config/
-├── agents/                  # 26 agents (3 updated, 23 ready)
-├── commands/                # 6 commands (4 new in Phase 2)
-├── hooks/                   # 2 hooks + README
-├── skills/                  # 3 skills docs (new in Phase 1-2)
-├── CLAUDE.md                # Global instructions
-├── setup-claude-symlinks.sh # Setup script (updated)
-├── CONFIGURATION_REVIEW.md  # Analysis
-├── PHASE1_COMPLETION.md     # Phase 1 summary
-├── PHASE2_COMPLETION.md     # Phase 2 summary
-├── SYMLINK_STATUS.md        # Symlink documentation
-└── MULTI_MACHINE_SETUP.md   # This file
-```
-
-All tracked in git and synced across machines.
-
 ## Setup Verification Checklist
 
 After setting up on a new machine:
@@ -380,7 +367,7 @@ After setting up on a new machine:
 - [ ] Verified symlinks: `ls -la ~/.claude/`
 - [ ] Tested reading: `cat ~/.claude/skills/README.md`
 - [ ] Tested commands: `ls ~/.claude/commands/`
-- [ ] Tested agents: `ls ~/.claude/agents/`
+- [ ] Tested agents: `ls ~/.claude/commands/`
 - [ ] Git configured: `git config --list`
 - [ ] Can push: `git push` (test with small change)
 - [ ] Can pull: `git pull`
@@ -394,7 +381,7 @@ git clone <repo> ~/claude-config && cd ~/claude-config && ./setup-claude-symlink
 # Daily workflow
 cd ~/claude-config
 git pull                    # Get latest
-vim agents/some-agent.md    # Edit
+vim commands/deploy-staging.md    # Edit
 git add .                   # Stage
 git commit -m "message"     # Commit
 git push                    # Sync
@@ -402,7 +389,7 @@ git push                    # Sync
 # Verify on other machine
 cd ~/claude-config
 git pull                    # Get changes
-cat ~/.claude/agents/some-agent.md  # Verify
+cat ~/.claude/commands/deploy-staging.md  # Verify
 ```
 
 ## Related Documentation

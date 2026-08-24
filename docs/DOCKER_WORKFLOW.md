@@ -4,7 +4,15 @@ This document explains the Docker-first development approach and how Claude Code
 
 ## Philosophy
 
-**All services run in Docker containers.** Commands should be executed via `docker compose run --rm <service> <command>` unless there's a specific reason to run locally.
+**All services run in Docker containers.** Run commands against the
+*already-running* container with `exec`, not `run --rm`. A fresh container
+costs ~13s; exec costs ~2.5s.
+
+`exec` skips the entrypoint, and the entrypoint is where `DATABASE_URL` gets
+built and where we `cd /app/backend`. So the Django-family services take an
+explicit `/entrypoint` prefix. The frontend image has no entrypoint and is
+called directly. `-T` disables TTY allocation; drop it for interactive
+commands like `shell` and `dbshell`.
 
 ## What Runs Where
 
@@ -19,16 +27,16 @@ This document explains the Docker-first development approach and how Claude Code
 **Most Commands**:
 ```bash
 # Testing
-docker compose run --rm django pytest
-docker compose run --rm frontend npm run test
+docker compose exec -T django /entrypoint pytest
+docker compose exec -T frontend npm run test
 
 # Database operations
-docker compose run --rm django python manage.py migrate
-docker compose run --rm django python manage.py dbshell
+docker compose exec -T django /entrypoint python manage.py migrate
+docker compose exec django /entrypoint python manage.py dbshell
 
 # Package installation
-docker compose run --rm frontend npm install
-docker compose run --rm django pip install -r requirements.txt
+docker compose exec -T frontend npm install
+docker compose exec -T django /entrypoint pip install -r requirements.txt
 ```
 
 ### ✅ Sometimes Local
@@ -64,14 +72,15 @@ Claude Code has a **PreToolUse hook** that intercepts Bash commands before execu
 When an agent tries to run a blocked command, they'll see:
 
 ```
-❌ BLOCKED: npm run dev
 
-This command is already running in Docker.
+BLOCKED: npm run dev
 
-✅ Instead use:
-  - View logs: docker compose logs -f frontend
+Already running in Docker.
+
+Instead:
+  - Logs:    docker compose logs -f frontend
   - Restart: docker compose restart frontend
-  - Build: docker compose run --rm frontend npm run build
+  - Build:   docker compose exec -T frontend npm run build
 ```
 
 ### Allowed Commands
@@ -81,7 +90,7 @@ Commands that pass the hook execute normally:
 ```bash
 ✅ python manage.py startapp blog
 ✅ npm run build
-✅ docker compose run --rm django pytest
+✅ docker compose exec -T django /entrypoint pytest
 ```
 
 ## Common Patterns
@@ -90,7 +99,7 @@ Commands that pass the hook execute normally:
 
 ```bash
 # ❌ WRONG: Files owned by root (can't edit)
-docker compose run --rm django python manage.py startapp blog
+docker compose exec -T django /entrypoint python manage.py startapp blog
 
 # ✅ CORRECT: Files owned by you
 python manage.py startapp blog
@@ -100,8 +109,8 @@ python manage.py startapp blog
 
 ```bash
 # ✅ CORRECT: Always run in Docker for consistency
-docker compose run --rm django pytest
-docker compose run --rm frontend npm run test
+docker compose exec -T django /entrypoint pytest
+docker compose exec -T frontend npm run test
 ```
 
 ### Pattern 3: Database Migrations (Always Docker - Postgres is in Docker!)
@@ -112,21 +121,21 @@ python manage.py makemigrations
 python manage.py migrate
 
 # ✅ CORRECT: Always in Docker
-docker compose run --rm django python manage.py makemigrations
-docker compose run --rm django python manage.py migrate
-docker compose run --rm django python manage.py shell
-docker compose run --rm django python manage.py createsuperuser
+docker compose exec -T django /entrypoint python manage.py makemigrations
+docker compose exec -T django /entrypoint python manage.py migrate
+docker compose exec django /entrypoint python manage.py shell
+docker compose exec django /entrypoint python manage.py createsuperuser
 ```
 
 ### Pattern 4: Install Packages
 
 ```bash
 # ✅ CORRECT: Install in Docker, update requirements file
-docker compose run --rm django pip install django-rest-framework
+docker compose exec -T django /entrypoint pip install django-rest-framework
 echo "djangorestframework==3.14.0" >> backend/requirements.txt
 
 # ✅ CORRECT: Frontend packages
-docker compose run --rm frontend npm install axios
+docker compose exec -T frontend npm install axios
 ```
 
 ### Pattern 5: View Logs
@@ -148,12 +157,13 @@ docker compose logs -f
 npm run build
 
 # ✅ ALTERNATIVE: Build in Docker (if local env issues)
-docker compose run --rm frontend npm run build
+docker compose exec -T frontend npm run build
 ```
 
 ## Hook Configuration
 
-The hook is defined in `~/.claude/settings.json`:
+The hook is defined in `~/.claude/settings.json`, which is tracked as
+`global-settings.json` and synced with `scripts/sync-settings.py`:
 
 ```json
 {
@@ -164,7 +174,7 @@ The hook is defined in `~/.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "/home/hamel/.claude/hooks/docker-command-guard.py"
+            "command": "python3 \"$HOME/.claude/hooks/docker-command-guard.py\""
           }
         ]
       }
@@ -261,6 +271,6 @@ docker compose logs -f
 
 ## Related Documentation
 
-- [Claude Code Hooks](~/.claude/hooks/README.md)
+- [Claude Code Hooks](../hooks/README.md)
 - [Django Best Practices](https://docs.djangoproject.com/)
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
