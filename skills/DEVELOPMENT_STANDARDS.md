@@ -1,10 +1,10 @@
 # Development Standards for Claude Code
 
-**Purpose**: This document codifies the mandatory development standards that Claude Code MUST follow across all projects. These standards are enforced by specialized agents, slash commands, and hooks.
+**Purpose**: Reference for how we build — file organization, TypeScript, Docker, testing, commits. `CLAUDE.md` is authoritative; where the two disagree, CLAUDE.md wins and this file is the one that's wrong.
 
 ## Table of Contents
 
-1. [Core TDD Philosophy](#core-tdd-philosophy)
+1. [Rigor](#rigor)
 2. [File Organization Rules](#file-organization-rules)
 3. [TypeScript Quality Standards](#typescript-quality-standards)
 4. [Docker Workflow Requirements](#docker-workflow-requirements)
@@ -14,41 +14,30 @@
 
 ---
 
-## Core TDD Philosophy
+## Rigor
 
-**The cardinal rule**: No code exists until there's a test that needs it.
+See `CLAUDE.md` → Rigor for the rule. The short version: verification means
+something that could actually fail.
 
-### RED-GREEN-REFACTOR Cycle (Immutable Sequence)
+A test written against code you just wrote encodes the same assumption twice
+and then passes. It proves the code does what you already believed, which is
+the one thing you didn't need proven. Blanket test-first bought coverage, not
+correctness — this file used to mandate it and an 85% floor, and the bugs
+shipped anyway.
 
-1. **RED**: Write failing tests FIRST
-2. **GREEN**: Write minimal code to pass tests
-3. **REFACTOR**: Improve code while keeping tests green
-4. **REPEAT**: Next feature or edge case
+What to do instead:
 
-### You Will Be FIRED If You
+- **Run the thing.** Real endpoint, real page, real query. That's what catches bugs.
+- **Integration over unit.** One test through the real stack beats ten mocked ones.
+- **Test-first for a bug with a repro.** Reality wrote that test, so it's real.
+- **Test-after for settled behavior** worth locking down — permissions, money,
+  state machines, data transforms. Test the contract, not the implementation
+  you happened to pick.
+- **No tests** for migrations, URL wiring, settings, plain CRUD, styling.
+- **Never report a passing run you didn't watch.** "Not tested" is a fine answer.
 
-- Write implementation before tests
-- Skip edge case testing
-- Ignore test coverage (minimum 85%)
-- Commit code with failing tests
-- Create files with >500 lines of code
-
-### Test Coverage Requirements
-
-| Layer | Minimum Coverage |
-|-------|------------------|
-| Models / Data | 90% |
-| Serializers / API | 85% |
-| Views / Components | 85% |
-| Services / Business Logic | 85% |
-| Utilities | 80% |
-| **Overall** | **85%** |
-
-### Special Requirements
-
-- **Security code**: 95% coverage minimum
-- **Data transformations**: 90% coverage minimum
-- **Payment/financial code**: 100% coverage required
+Coverage is a smell, not a gate. A number chased on its own gets met with
+tests that assert what the code does rather than what it owes.
 
 ---
 
@@ -388,19 +377,21 @@ docker compose exec -T frontend npm run type-check 2>&1 \
 - ESLint: 0 errors ✅
 - Tests: All passing ✅
 - Build: Success ✅
-- Coverage: 85%+ ✅
 
 ---
 
 ## Testing Standards
 
-### Test Categories (All Required)
+### Test Categories
 
-1. **Unit Tests**: Individual functions/methods
-2. **Integration Tests**: API endpoints, database interactions
-3. **Security Tests**: Authentication, authorization, injection attacks
-4. **Performance Tests**: N+1 queries, load testing
-5. **Edge Cases**: Null values, boundary conditions, race conditions
+Ranked by what actually earns its keep. Not a checklist to complete on every
+feature — write the ones the feature warrants.
+
+1. **Integration**: API endpoints, database interactions. Start here.
+2. **Security**: authn/authz, injection — wherever there's a permission boundary.
+3. **Edge cases**: nulls, boundaries, races. Where a branch can be wrong.
+4. **Performance**: N+1 and query counts, on endpoints that fan out.
+5. **Unit**: individual functions, for logic gnarly enough to isolate.
 
 ### Test Organization
 
@@ -423,7 +414,6 @@ tests/
 ### Django Test Patterns
 
 ```python
-# FIRST: Write tests
 @pytest.mark.django_db
 class TestProjectAPI:
     def test_list_projects_returns_paginated_results(self):
@@ -540,8 +530,6 @@ These standards used to be enforced by 26 specialized agents. Those were
 archived in 54f529c after transcripts showed 22 of them had never been
 dispatched; they are in `agents-archive/`. The standards now stand on their
 own, and `CLAUDE.md` carries the rules that must actually be followed.
-- `security-tdd-architect` - Security testing enforcement
-- And 21 more specialized agents
 
 ### 2. Slash Commands
 
@@ -557,7 +545,6 @@ own, and `CLAUDE.md` carries the rules that must actually be followed.
 
 - `TYPESCRIPT_PATTERNS.md` - Battle-tested TypeScript patterns
 - `docs/DOCKER_WORKFLOW.md` - Docker workflow guide
-- Agent-specific guides in `agents/` directory
 
 ---
 
@@ -566,7 +553,7 @@ own, and `CLAUDE.md` carries the rules that must actually be followed.
 ### Before Starting Any Task
 
 1. Understand requirements clearly
-2. Plan TDD approach (tests first!)
+2. Decide how you'll verify it — see Rigor
 3. Check file size limits
 4. Verify Docker services running
 5. Run type-check if frontend work
@@ -583,9 +570,6 @@ docker compose exec -T frontend npm run build-only
 docker compose exec -T django /entrypoint ruff check .
 docker compose exec -T django /entrypoint pytest
 docker compose exec -T django /entrypoint python manage.py check
-
-# Frontend
-docker compose exec -T frontend npm run type-check
 ```
 
 ### When Stuck
@@ -598,18 +582,15 @@ docker compose exec -T frontend npm run type-check
 
 ## Success Criteria
 
-Every task you complete must have:
+Before you call a task done:
 
-- ✅ Tests written BEFORE implementation
-- ✅ All tests passing (green)
-- ✅ 85%+ code coverage
+- ✅ You ran it and watched it work — not just the tests
+- ✅ Tests you did write are passing, and you saw the output
 - ✅ TypeScript: 0 errors (frontend)
+- ✅ Ruff clean (backend)
 - ✅ No files exceeding 500 lines
-- ✅ Proper file organization
-- ✅ Security tests included
-- ✅ Performance tests for queries
-- ✅ Edge cases covered
 - ✅ Git commit follows standards
-- ✅ Quality gates passed
+- ✅ Anything you skipped or couldn't verify, said out loud
 
-**Remember**: Code without tests is code that doesn't exist. Tests are not optional—they are the foundation.
+The last one is the one that matters. An honest "I didn't test the retry path"
+is worth more than a green suite that never exercised it.

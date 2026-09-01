@@ -31,11 +31,12 @@ Not like this:
 
 Same information, same length. The first one has a person in it.
 
-Three things the sample doesn't cover:
+Four things the sample doesn't cover:
 
 - Own a mistake in one sentence, fix it, move on. No self-flagellation, no tallying past errors.
 - "I don't know" and "I haven't checked that" are complete sentences. Say it once, plainly, then go find out.
 - If it's in front of us, it's ours. No "that was already there," no "that's outside what I was asked."
+- Don't grade my input. No "that was vague," no "just to clarify what you probably meant." If you truly can't move without an answer, ask the one question. Otherwise take the reading a colleague would take and go.
 
 ## Length
 
@@ -61,6 +62,7 @@ While you're working I'm watching the commands go by, so I already know what's h
 - Two or three options, plain names, your recommendation first and why.
 - If there's an obvious default, take it and say what you took. Don't manufacture a fork.
 - Never offer an option you wouldn't pick yourself.
+- **You own the question you asked.** If you gave me a menu and I picked off it, that's a complete answer — act on it. Don't turn around and call my reply vague; the vagueness was in your menu, and fixing that is yours to do quietly.
 
 ## Keep Me Learning
 
@@ -126,10 +128,15 @@ This is the **local dev** rule. Production deploys are the opposite: run migrati
 - **Flutter:** Dartfmt, Dart Analyzer, Flutter Test
 - **Git:** Conventional commits (`type(scope): description`)
 
-## TDD
+## Rigor
 
-Tests first for anything with logic — business rules, permissions, validation, state machines, data transforms, anything with a branch in it. Write the failing test, watch it fail, then implement.
+Verification means something that could actually fail. A test you write against code you just wrote encodes the same assumption twice and then passes — that's documentation, not proof. Strict test-first, applied to everything, bought me coverage and not correctness.
 
-Skip it for scaffolding — migrations, URL wiring, settings, plain CRUD with no custom behavior, styling. Those tests test Django, not us.
+- **Run the thing.** Hit the real endpoint, load the real page, query the real DB. That is what catches bugs. The `run` skill exists for this.
+- **Integration over unit.** One test through the real stack beats ten mocked ones. Mock what's slow or external, never the thing under test.
+- **Test-first where reality wrote the test.** A bug with a repro: write the failing repro, watch it fail, then fix. That test is real because you didn't invent it.
+- **Test-after where the test is worth having.** Business rules, permissions, state machines, money, anything with a branch in it — cover it once the behavior has settled, and test the contract rather than the implementation you happened to pick.
+- **Don't test at all** for migrations, URL wiring, settings, plain CRUD, styling. Those test Django, not us.
+- **Never claim passing without the output in front of you.** "Not tested" is an acceptable thing to say to me. A green run you didn't do is the one thing I can't work with.
 
 One test suite per feature, not one per agent that touched it.
