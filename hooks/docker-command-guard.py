@@ -27,7 +27,14 @@ BLOCKED_PATTERNS = [
     r'\bnpm\s+run\s+(dev|serve)\b',
     r'\byarn\s+(dev|serve)\b',
     r'\bpnpm\s+(dev|serve)\b',
-    r'\bvite\b(?!.*build)',  # vite without build
+    # Invoking the vite binary directly, without a `build` subcommand.
+    # Patterns are matched with re.IGNORECASE, so this must not fire on the
+    # string "vite" appearing as anything other than a command word: it has to
+    # sit at the start of the command or after a shell operator or a runner,
+    # and be followed by whitespace or end-of-string. Without those guards it
+    # blocked `cat vite.config.ts` and even the word "Vite" inside a comment
+    # being written into a heredoc.
+    r'(?:^|[;&|]\s*|\bnpx\s+|\byarn\s+|\bpnpm\s+(?:exec\s+)?)vite(?!\S)(?!.*\bbuild\b)',
 
     # Django dev server
     r'\bpython\s+manage\.py\s+runserver\b',
